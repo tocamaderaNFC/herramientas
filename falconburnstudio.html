@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FalconBurn Studio · MDF / Compensado 3mm (SVG + G-Code)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Montserrat:wght@700&family=Playfair+Display:wght@700&family=Oswald:wght@700&family=Bebas+Neue&family=Lobster&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#111318;--panel:#181b22;--panel2:#20242d;--line:#2d323e;
+  --tx:#eceef2;--mut:#949ba8;--gold:#fbbc04;--cut:#ff2e2e;--score:#0088ff;--eng:#111111;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13.5px/1.4 "Segoe UI",system-ui,sans-serif;overflow:hidden}
+.app{display:grid;grid-template-columns:440px 1fr;height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:14px 16px;overflow-y:auto;height:100vh}
+.brand{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.brand h1{font-size:16px;margin:0;color:var(--gold);letter-spacing:.3px}
+.badge{background:#262b36;color:#7ee787;border:1px solid #354152;padding:3px 8px;border-radius:6px;font-size:11.5px;font-weight:600}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:0 0 12px;padding:10px 12px 12px;background:var(--panel2)}
+legend{padding:0 6px;color:var(--gold);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+label{display:block;font-size:12px;color:var(--mut);margin:7px 0 3px}
+input[type=text],input[type=number],select{width:100%;background:#101217;color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+input[type=color]{width:100%;height:30px;background:#101217;border:1px solid var(--line);border-radius:6px;padding:2px}
+input[type=range]{width:100%;accent-color:var(--gold);margin:2px 0}
+input[type=file]{width:100%;color:var(--mut);font-size:12px;background:#101217;padding:6px;border-radius:6px;border:1px dashed var(--line)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.chk{display:flex;gap:7px;align-items:center;color:var(--tx);margin:7px 0 0;cursor:pointer;font-size:12.5px}
+.chk input{accent-color:var(--gold)}
+.layers{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.layer-card{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:center;background:#12151b;border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+.swatch{width:16px;height:16px;border-radius:4px;border:1px solid #fff4}
+.layer-title{font-weight:700;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.layer-sub{font-size:11px;color:var(--mut)}
+main{display:flex;flex-direction:column;height:100vh;background:#0d0f13;position:relative}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);font-size:12.5px}
+.stats{display:flex;gap:14px;color:var(--mut)}
+.stats b{color:var(--tx)}
+.viewport{flex:1;display:flex;align-items:center;justify-content:center;padding:16px;overflow:hidden;position:relative}
+canvas{max-height:calc(100vh - 135px);max-width:100%;border-radius:4px;box-shadow:0 12px 42px #000b;background:#1b1e24;touch-action:none}
+.bottombar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:var(--panel);border-top:1px solid var(--line);flex-wrap:wrap}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button{border:0;border-radius:6px;padding:8px 13px;font:600 12.5px inherit;cursor:pointer;background:var(--gold);color:#171200;display:inline-flex;align-items:center;gap:6px}
+button:hover{filter:brightness(1.08)}
+button.gcode{background:#2ea043;color:#fff}
+button.svgbtn{background:#2f81f7;color:#fff}
+button.alt{background:#212630;color:var(--tx);border:1px solid var(--line)}
+#hint{font-size:12px;color:var(--gold)}
+.hide{display:none!important}
+@media(max-width:920px){body{overflow:auto}.app{grid-template-columns:1fr;height:auto}aside{height:auto}main{height:auto}canvas{max-height:70vh}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside id="ctl">
+  <div class="brand">
+    <h1>FalconBurn · 3mm Compensado</h1>
+    <span class="badge">GRBL 1.1 · 10W</span>
+  </div>
+
+  <fieldset>
+    <legend>Capas Láser (Parámetros G-Code)</legend>
+    <div class="layers">
+      <div class="layer-card">
+        <div class="swatch" style="background:#000000;border-color:#666"></div>
+        <div>
+          <div class="layer-title"><span>C00 · GRABADO (Fill)</span><span>M4 Dinámico</span></div>
+          <div class="row3" style="margin-top:4px">
+            <div><label style="margin:0">Vel (mm/m)</label><input type="number" id="engSpd" value="4500" step="100" min="100" max="12000"></div>
+            <div><label style="margin:0">Power (%)</label><input type="number" id="engPwr" value="50" step="1" min="1" max="100"></div>
+            <div><label style="margin:0">Interv (mm)</label><input type="number" id="engInt" value="0.10" step="0.02" min="0.05" max="0.50"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="layer-card">
+        <div class="swatch" style="background:#0088ff"></div>
+        <div>
+          <div class="layer-title"><span>C01 · TRAZADO / MARCA (Line)</span><span>Vector</span></div>
+          <div class="row3" style="margin-top:4px">
+            <div><label style="margin:0">Vel (mm/m)</label><input type="number" id="lineSpd" value="2200" step="100" min="100" max="10000"></div>
+            <div><label style="margin:0">Power (%)</label><input type="number" id="linePwr" value="60" step="1" min="1" max="100"></div>
+            <div><label style="margin:0">Pasadas</label><input type="number" id="linePass" value="1" step="1" min="1" max="10"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="layer-card">
+        <div class="swatch" style="background:#ff2e2e"></div>
+        <div>
+          <div class="layer-title"><span>C02 · CORTE 3MM (Cut)</span><span>M3 Constante</span></div>
+          <div class="row3" style="margin-top:4px">
+            <div><label style="margin:0">Vel (mm/m)</label><input type="number" id="cutSpd" value="240" step="10" min="50" max="3000"></div>
+            <div><label style="margin:0">Power (%)</label><input type="number" id="cutPwr" value="100" step="1" min="1" max="100"></div>
+            <div><label style="margin:0">Pasadas</label><input type="number" id="cutPass" value="1" step="1" min="1" max="10"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Plantilla y Textos</legend>
+    <label for="preset">Modelo rápido</label>
+    <select id="preset">
+      <option value="google" selected>⭐ Google Reviews (Calificanos)</option>
+      <option value="instagram">📸 Instagram (Seguinos)</option>
+      <option value="mercadopago">🤝 Mercado Pago / Libre (Pagá acá)</option>
+    </select>
+
+    <label for="name">Nombre del negocio (Arriba)</label>
+    <input type="text" id="name" value="NOMBRE DEL NEGOCIO">
+
+    <label for="top">Título principal (Usá "|" para salto de línea)</label>
+    <input type="text" id="top" value="CALIFICANOS EN">
+
+    <label for="subtxt">Subtítulo / @usuario</label>
+    <input type="text" id="subtxt" value="" placeholder="Ej: @tu_negocio">
+
+    <label for="url">Link del Código QR</label>
+    <input type="text" id="url" placeholder="https://...">
+
+    <label class="chk"><input type="checkbox" id="stars" checked> Mostrar 5 estrellas</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Logo Central + Trazador de Corte</legend>
+    <label for="cLogo">Seleccionar logo</label>
+    <select id="cLogo">
+      <option value="google" selected>Logo Google ("G")</option>
+      <option value="instagram">Logo Instagram</option>
+      <option value="mercadopago">Logo Mercado Pago / Libre (Vector limpio)</option>
+      <option value="custom">Subir imagen personalizada (Con Auto-Trace)...</option>
+      <option value="none">Ninguno</option>
+    </select>
+
+    <div id="customLogoBox" class="hide">
+      <label for="logo">Subir PNG / JPG / SVG</label>
+      <input type="file" id="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+    </div>
+
+    <label for="logoLayerMode">Acción láser sobre el logo</label>
+    <select id="logoLayerMode">
+      <option value="engrave" selected>C00 · Solo Grabar Relleno (4500 / 50%)</option>
+      <option value="engrave_cut">C00 + C02 · Grabar Relleno + Cortar Silueta Exterior</option>
+      <option value="cut_all">C02 · Trazar Líneas como Corte (Rojo)</option>
+      <option value="score_all">C01 · Trazar Líneas como Marcado Vectorial (Azul)</option>
+    </select>
+
+    <div id="traceControls">
+      <div class="row">
+        <div>
+          <label for="traceThr">Umbral trazado: <span id="thrVal">145</span></label>
+          <input type="range" id="traceThr" min="15" max="245" value="145">
+        </div>
+        <div>
+          <label for="traceOff">Offset corte: <span id="offVal">0.0</span> mm</label>
+          <input type="range" id="traceOff" min="-2.0" max="5.0" step="0.2" value="0.0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="traceSimp">Suavizado nodos: <span id="simpVal">1.2</span></label>
+          <input type="range" id="traceSimp" min="0.3" max="4.0" step="0.1" value="1.2">
+        </div>
+        <div>
+          <label for="traceMode">Detección de bordes</label>
+          <select id="traceMode">
+            <option value="auto" selected>Auto (Alpha / Brillo)</option>
+            <option value="luma">Por Brillo (Blanco/Negro)</option>
+            <option value="alpha">Solo Silueta PNG (Alpha)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label class="chk"><input type="checkbox" id="traceOuterOnly"> Solo silueta exterior</label>
+        <label class="chk"><input type="checkbox" id="traceInvert"> Invertir blanco/negro</label>
+      </div>
+    </div>
+
+    <label for="lscale">Tamaño del logo: <span id="lval">28</span>%</label>
+    <input type="range" id="lscale" min="10" max="60" value="28">
+  </fieldset>
+
+  <fieldset>
+    <legend>Tipografías y Bloques Inferiores</legend>
+    <div class="row">
+      <div>
+        <label for="fname">Fuente Negocio</label>
+        <select id="fname"></select>
+      </div>
+      <div>
+        <label for="ftop">Fuente Título</label>
+        <select id="ftop"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="nmk">Escala Negocio: <span id="nmkv">100</span>%</label>
+        <input type="range" id="nmk" min="50" max="180" value="100">
+      </div>
+      <div>
+        <label for="fsz">Escala Título: <span id="fszv">100</span>%</label>
+        <input type="range" id="fsz" min="60" max="160" value="100">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="qrsz">Tamaño QR: <span id="qrszv">36</span>%</label>
+        <input type="range" id="qrsz" min="20" max="55" value="36">
+      </div>
+      <div>
+        <label for="nfcSize">Tamaño NFC: <span id="nfcSv">32</span>%</label>
+        <input type="range" id="nfcSize" min="18" max="50" value="32">
+      </div>
+    </div>
+    <label class="chk"><input type="checkbox" id="nfcOn" checked> Mostrar bloque NFC</label>
+    <label for="nfcCap">Texto sobre NFC (2 líneas con "|")</label>
+    <input type="text" id="nfcCap" value="APOYÁ TU|CELULAR ACÁ">
+  </fieldset>
+
+  <fieldset>
+    <legend>Geometría de Tabla y Encastre (3mm)</legend>
+    <div class="row">
+      <div>
+        <label for="size">Medida de tabla</label>
+        <select id="size">
+          <option value="13x20" selected>130 × 200 mm (13×20 cm)</option>
+          <option value="10x20">100 × 200 mm (10×20 cm)</option>
+          <option value="14.8x21">148 × 210 mm (A5)</option>
+          <option value="15x15">150 × 150 mm (15×15 cm)</option>
+        </select>
+      </div>
+      <div>
+        <label for="originMode">Origen G-Code (0,0)</label>
+        <select id="originMode">
+          <option value="bl" selected>Abajo-Izquierda (Estándar)</option>
+          <option value="center">Centro de la pieza</option>
+        </select>
+      </div>
+    </div>
+    <label class="chk"><input type="checkbox" id="cutBorder" checked> Cortar contorno exterior (C02 Rojo)</label>
+    <label class="chk"><input type="checkbox" id="cutSlots" checked> Incluir ranuras inferiores para patitas</label>
+    <div class="row">
+      <div>
+        <label for="slotW">Ancho ranura (Kerf mm)</label>
+        <input type="number" id="slotW" value="2.85" step="0.05" min="2.0" max="5.0">
+      </div>
+      <div>
+        <label for="slotH">Alto ranura (mm)</label>
+        <input type="number" id="slotH" value="10" step="0.5" min="5" max="30">
+      </div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <div>
+        <label for="viewMode">Modo de Vista</label>
+        <select id="viewMode">
+          <option value="lightburn" selected>Mesa LightBurn (Capas y Grilla)</option>
+          <option value="wood">Simulación Madera Compensada</option>
+        </select>
+      </div>
+      <div>
+        <label for="overscan">Overscan grabado (mm)</label>
+        <input type="number" id="overscan" value="2.5" step="0.5" min="0" max="10">
+      </div>
+    </div>
+  </fieldset>
+</aside>
+
+<main>
+  <div class="topbar">
+    <div class="stats">
+      <span>Material: <b>Fibra Compensada 3mm</b></span>
+      <span>Área: <b id="stArea">130 × 200 mm</b></span>
+      <span>Grabado: <b id="stEng">4500 mm/m @ 50%</b></span>
+      <span>Nodos trazados: <b id="stNodes">0</b></span>
+      <span>Tiempo est.: <b id="stTime">--</b></span>
+    </div>
+    <div id="hint">Clic y arrastrá cualquier bloque para moverlo o escalarlo.</div>
+  </div>
+
+  <div class="viewport">
+    <canvas id="cv"></canvas>
+  </div>
+
+  <div class="bottombar">
+    <div class="btns">
+      <button id="reset" class="alt">↺ Restablecer posiciones</button>
+      <button id="toggleSim" class="alt">🔍 Ver Lineas de Escaneo Láser</button>
+    </div>
+    <div class="btns">
+      <button id="btnSvgAll" class="svgbtn">⬇ Exportar SVG (Capas)</button>
+      <button id="btnGcodeAll" class="gcode">⚡ Exportar G-Code Tabla (.gcode)</button>
+      <button id="btnGcodeFeet" class="alt">⚡ G-Code Patitas</button>
+      <button id="btnSvgFeet" class="alt">⬇ SVG Patitas</button>
+      <button id="btnPng" class="alt">🖼 Mockup PNG</button>
+    </div>
+  </div>
+</main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const SAMPLE = 'https://g.page/r/EJEMPLO/review';
+let customLogoImg = null;
+let tracedPaths = []; // Polilíneas normalizadas en coordenadas [-0.5, 0.5]
+let showScanPreview = false;
+
+/* ---------- Fuentes ---------- */
+const FONTS = {
+  'Oswald (condensada)': { w: 700, k: 1.05, css: '"Oswald",sans-serif' },
+  'Montserrat (limpia)': { w: 700, k: 0.92, css: '"Montserrat",sans-serif' },
+  'Poppins (moderna)': { w: 700, k: 0.92, css: '"Poppins",sans-serif' },
+  'Bebas Neue (afiche)': { w: 400, k: 1.25, css: '"Bebas Neue",sans-serif' },
+  'Playfair Display (serif)': { w: 700, k: 0.95, css: '"Playfair Display",serif' },
+  'Lobster (script)': { w: 400, k: 1.0, css: '"Lobster",cursive' }
+};
+const fontSpec = id => FONTS[$(id).value] || Object.values(FONTS)[0];
+function populateFonts() {
+  ['ftop', 'fname'].forEach(id => {
+    $(id).innerHTML = Object.keys(FONTS).map(k => `<option>${k}</option>`).join('');
+    $(id).value = 'Oswald (condensada)';
+  });
+}
+const loadFonts = () => Promise.all(Object.values(FONTS).map(f => document.fonts.load(`${f.w} 36px${f.css}`).catch(() => {})));
+
+/* ---------- Presets ---------- */
+const PRESETS = {
+  google: { top: 'CALIFICANOS EN', stars: true, cLogo: 'google', subtxt: '', lscale: 27 },
+  instagram: { top: 'SEGUINOS EN|INSTAGRAM', stars: false, cLogo: 'instagram', subtxt: '@tu_usuario', lscale: 28 },
+  mercadopago: { top: 'PAGÁ ACÁ CON|MERCADO PAGO', stars: false, cLogo: 'mercadopago', subtxt: '', lscale: 34 }
+};
+
+$('preset').addEventListener('change', () => {
+  const p = PRESETS[$('preset').value];
+  if (!p) return;
+  $('top').value = p.top;
+  $('stars').checked = p.stars;
+  $('cLogo').value = p.cLogo;
+  $('subtxt').value = p.subtxt;
+  $('lscale').value = p.lscale;
+  $('lval').textContent = p.lscale;
+  $('customLogoBox').classList.toggle('hide', p.cLogo !== 'custom');
+  Object.keys(ov).forEach(k => delete ov[k]);
+  rebuildTrace();
+  render();
+});
+
+$('cLogo').addEventListener('change', () => {
+  $('customLogoBox').classList.toggle('hide', $('cLogo').value !== 'custom');
+  rebuildTrace();
+  render();
+});
+
+/* ---------- Utilidades Geométricas ---------- */
+function dims() {
+  const [w, h] = $('size').value.split('x').map(Number);
+  return { wcm: w, hcm: h, wmm: w * 10, hmm: h * 10 };
+}
+
+function makeQR() {
+  const qr = qrcode(0, 'M');
+  qr.addData($('url').value.trim() || SAMPLE);
+  qr.make();
+  return qr;
+}
+
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function starPath(ctx, cx, cy, R) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? R * 0.42 : R;
+    ctx[i ? 'lineTo' : 'moveTo'](cx + r * Math.cos(a), cy + r * Math.sin(a));
+  }
+  ctx.closePath();
+}
+
+function parseLines(ctx, text, maxW) {
+  const manual = text.split('|').map(s => s.trim()).filter(Boolean);
+  const lines = [];
+  for (const part of manual) {
+    const words = part.split(/\s+/);
+    let line = '';
+    for (const w of words) {
+      const t = line ? line + ' ' + w : w;
+      if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; }
+      else line = t;
+    }
+    if (line) lines.push(line);
+  }
+  return lines;
+}
+
+/* ---------- Logos Incorporados (Con versión corregida de Mercado Pago / Libre) ---------- */
+function drawGoogleLogo(ctx, s, col, strokeOnly = false, lw = 2) {
+  const R = s * 0.46, r = s * 0.27, rm = (R + r) / 2, th = R - r;
+  ctx.save();
+  if (!strokeOnly) {
+    ctx.strokeStyle = col; ctx.fillStyle = col;
+    ctx.lineWidth = th; ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.arc(0, 0, rm, 0.02, Math.PI * 1.76, false);
+    ctx.stroke();
+    ctx.fillRect(0, -th * 0.48, R * 0.98, th * 0.96);
+  } else {
+    ctx.strokeStyle = col; ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawInstagramLogo(ctx, s, col, strokeOnly = false, lw = 2) {
+  const w = s * 0.88, r = w * 0.27;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.fillStyle = col;
+  ctx.lineWidth = strokeOnly ? lw : s * 0.085;
+  rrect(ctx, -w / 2, -w / 2, w, w, r);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, w * 0.25, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(w * 0.27, -w * 0.27, w * 0.065, 0, Math.PI * 2);
+  if (strokeOnly) ctx.stroke(); else ctx.fill();
+  ctx.restore();
+}
+
+// Logo Mercado Pago / Mercado Libre rediseñado con curvas Bezier limpias
+function drawMercadoPagoLogo(ctx, s, col, strokeOnly = false, lw = 2) {
+  const rx = s * 0.54, ry = s * 0.36;
+  ctx.save();
+  ctx.strokeStyle = col; ctx.fillStyle = col;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.lineWidth = strokeOnly ? lw : Math.max(2, s * 0.042);
+
+  // Óvalo principal
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Puño/Brazo Izquierdo superior y derecho
+  ctx.beginPath();
+  ctx.moveTo(-rx * 0.88, -ry * 0.22);
+  ctx.quadraticCurveTo(-rx * 0.48, -ry * 0.26, -rx * 0.28, -ry * 0.14);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-rx * 0.86, ry * 0.22);
+  ctx.quadraticCurveTo(-rx * 0.52, ry * 0.20, -rx * 0.34, ry * 0.26);
+  ctx.stroke();
+
+  // Puño/Brazo Derecho superior e inferior
+  ctx.beginPath();
+  ctx.moveTo(rx * 0.88, -ry * 0.22);
+  ctx.quadraticCurveTo(rx * 0.48, -ry * 0.26, rx * 0.26, -ry * 0.14);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(rx * 0.86, ry * 0.22);
+  ctx.quadraticCurveTo(rx * 0.54, ry * 0.20, rx * 0.34, ry * 0.26);
+  ctx.stroke();
+
+  // Pulgar entrelazado central
+  ctx.beginPath();
+  ctx.moveTo(-rx * 0.28, -ry * 0.14);
+  ctx.quadraticCurveTo(-rx * 0.05, -ry * 0.44, rx * 0.12, -ry * 0.20);
+  ctx.quadraticCurveTo(rx * 0.22, -ry * 0.05, rx * 0.04, ry * 0.06);
+  ctx.quadraticCurveTo(-rx * 0.12, ry * 0.12, -rx * 0.18, -ry * 0.02);
+  ctx.stroke();
+
+  // Arco mano derecha envolviendo
+  ctx.beginPath();
+  ctx.moveTo(rx * 0.26, -ry * 0.14);
+  ctx.quadraticCurveTo(rx * 0.06, -ry * 0.36, -rx * 0.14, -ry * 0.22);
+  ctx.stroke();
+
+  // 4 Dedos de la mano derecha cerrando abajo
+  const fingers = [
+    { x1: 0.08, y1: 0.12, x2: 0.30, y2: 0.26 },
+    { x1: -0.02, y1: 0.20, x2: 0.20, y2: 0.35 },
+    { x1: -0.13, y1: 0.26, x2: 0.08, y2: 0.40 },
+    { x1: -0.24, y1: 0.30, x2: -0.05, y2: 0.42 }
+  ];
+  fingers.forEach(f => {
+    ctx.beginPath();
+    ctx.moveTo(rx * f.x1, ry * f.y1);
+    ctx.lineTo(rx * f.x2, ry * f.y2);
+    ctx.stroke();
+  });
+
+  // 3 Nudillos redondeados abajo a la izquierda
+  const knuckles = [
+    [-0.30, 0.26],
+    [-0.21, 0.33],
+    [-0.11, 0.39]
+  ];
+  knuckles.forEach(([kx, ky]) => {
+    ctx.beginPath();
+    ctx.arc(rx * kx, ry * ky, s * 0.038, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+function drawNFCBlock(ctx, s, col, capText) {
+  ctx.save();
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineCap = 'round';
+  const lines = capText.split('|').map(t => t.trim()).filter(Boolean);
+  const fsCap = s * 0.145;
+  ctx.font = `700 ${fsCap}px "Oswald",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const yOff = -s * 0.26;
+  if (lines.length === 1) ctx.fillText(lines[0], 0, yOff);
+  else if (lines.length >= 2) {
+    ctx.fillText(lines[0], 0, yOff - fsCap * 0.62);
+    ctx.fillText(lines[1], 0, yOff + fsCap * 0.58);
+  }
+  const wy = s * 0.18, fsNfc = s * 0.22;
+  ctx.font = `700 ${fsNfc}px "Oswald",sans-serif`;
+  ctx.fillText('NFC', 0, wy);
+
+  ctx.lineWidth = s * 0.038;
+  const radii = [s * 0.26, s * 0.36, s * 0.46], spread = 0.58;
+  radii.forEach(r => {
+    ctx.beginPath(); ctx.arc(0, wy, r, -spread, spread); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, wy, r, Math.PI - spread, Math.PI + spread); ctx.stroke();
+  });
+  ctx.restore();
+}
+
+/* ---------- Motor Auto-Trace (Marching Squares + Offset + Simplificación RDP) ---------- */
+function rdpSimplify(pts, eps) {
+  if (pts.length < 4) return pts;
+  let dmax = 0, idx = 0;
+  const [x1, y1] = pts[0], [x2, y2] = pts[pts.length - 1];
+  const dx = x2 - x1, dy = y2 - y1, len2 = dx * dx + dy * dy;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [px, py] = pts[i];
+    let t = len2 > 0 ? ((px - x1) * dx + (py - y1) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const d = Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+    if (d > dmax) { idx = i; dmax = d; }
+  }
+  if (dmax > eps) {
+    const p1 = rdpSimplify(pts.slice(0, idx + 1), eps);
+    const p2 = rdpSimplify(pts.slice(idx), eps);
+    return p1.slice(0, -1).concat(p2);
+  }
+  return [pts[0], pts[pts.length - 1]];
+}
+
+function rebuildTrace() {
+  tracedPaths = [];
+  const cType = $('cLogo').value;
+  const RES = 220;
+  const offCv = document.createElement('canvas');
+  offCv.width = RES; offCv.height = RES;
+  const octx = offCv.getContext('2d');
+  octx.clearRect(0, 0, RES, RES);
+
+  const pad = 24;
+  const drawSz = RES - pad * 2;
+
+  if (cType === 'custom') {
+    if (!customLogoImg) { $('stNodes').textContent = '0'; return; }
+    const k = Math.min(drawSz / customLogoImg.width, drawSz / customLogoImg.height);
+    const iw = customLogoImg.width * k, ih = customLogoImg.height * k;
+    octx.drawImage(customLogoImg, (RES - iw) / 2, (RES - ih) / 2, iw, ih);
+  } else if (cType !== 'none') {
+    octx.save();
+    octx.translate(RES / 2, RES / 2);
+    if (cType === 'google') drawGoogleLogo(octx, drawSz, '#000000', false);
+    else if (cType === 'instagram') drawInstagramLogo(octx, drawSz, '#000000', false);
+    else if (cType === 'mercadopago') drawMercadoPagoLogo(octx, drawSz, '#000000', false);
+    octx.restore();
+  } else {
+    $('stNodes').textContent = '0';
+    return;
+  }
+
+  const imgData = octx.getImageData(0, 0, RES, RES).data;
+  const thr = +$('traceThr').value || 145;
+  const tMode = $('traceMode').value;
+  const invert = $('traceInvert').checked;
+  const outerOnly = $('traceOuterOnly').checked;
+
+  let grid = new Uint8Array(RES * RES);
+  for (let i = 0; i < RES * RES; i++) {
+    const r = imgData[i * 4], g = imgData[i * 4 + 1], b = imgData[i * 4 + 2], a = imgData[i * 4 + 3];
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    let inside = false;
+    if (tMode === 'alpha') inside = a > thr;
+    else if (tMode === 'luma') inside = a > 30 && luma < thr;
+    else {
+      // Auto: si tiene transparencia marcada y es de color claro, usa alpha; si no, combina brillo y alpha
+      inside = a > 50 && (luma < thr || (a > 180 && luma < 245));
+    }
+    if (invert) inside = !inside;
+    grid[i] = inside ? 1 : 0;
+  }
+
+  // Offset morfológico (Dilatación / Erosión en píxeles proporcional a mm)
+  const { wmm } = dims();
+  const logoMm = wmm * (+$('lscale').value / 100);
+  const pxPerMm = drawSz / Math.max(10, logoMm);
+  const offMm = +$('traceOff').value || 0;
+  const radPx = Math.round(Math.abs(offMm) * pxPerMm);
+
+  if (radPx > 0) {
+    const next = new Uint8Array(RES * RES);
+    const dilate = offMm > 0;
+    const r2 = radPx * radPx;
+    for (let y = 0; y < RES; y++) {
+      for (let x = 0; x < RES; x++) {
+        let hit = dilate ? 0 : 1;
+        for (let dy = -radPx; dy <= radPx; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= RES) { if (!dilate) hit = 0; continue; }
+          for (let dx = -radPx; dx <= radPx; dx++) {
+            if (dx * dx + dy * dy > r2) continue;
+            const nx = x + dx;
+            if (nx < 0 || nx >= RES) { if (!dilate) hit = 0; continue; }
+            const v = grid[ny * RES + nx];
+            if (dilate && v === 1) { hit = 1; break; }
+            if (!dilate && v === 0) { hit = 0; break; }
+          }
+          if ((dilate && hit === 1) || (!dilate && hit === 0)) break;
+        }
+        next[y * RES + x] = hit;
+      }
+    }
+    grid = next;
+  }
+
+  // Si "Solo silueta exterior" está activo, rellenamos huecos internos con Flood Fill desde el borde
+  if (outerOnly) {
+    const ext = new Uint8Array(RES * RES);
+    const q = [];
+    for (let x = 0; x < RES; x++) {
+      if (!grid[x]) { ext[x] = 1; q.push(x); }
+      const b = (RES - 1) * RES + x;
+      if (!grid[b]) { ext[b] = 1; q.push(b); }
+    }
+    for (let y = 0; y < RES; y++) {
+      const l = y * RES, r = y * RES + RES - 1;
+      if (!grid[l] && !ext[l]) { ext[l] = 1; q.push(l); }
+      if (!grid[r] && !ext[r]) { ext[r] = 1; q.push(r); }
+    }
+    let head = 0;
+    while (head < q.length) {
+      const cur = q[head++], cx = cur % RES, cy = (cur / RES) | 0;
+      const nb = [];
+      if (cx > 0) nb.push(cur - 1);
+      if (cx < RES - 1) nb.push(cur + 1);
+      if (cy > 0) nb.push(cur - RES);
+      if (cy < RES - 1) nb.push(cur + RES);
+      for (const n of nb) {
+        if (!grid[n] && !ext[n]) { ext[n] = 1; q.push(n); }
+      }
+    }
+    for (let i = 0; i < RES * RES; i++) grid[i] = ext[i] ? 0 : 1;
+  }
+
+  // Extracción de segmentos de contorno (Marching Squares)
+  const adj = new Map();
+  const key = (x, y) => `${x},${y}`;
+  const addSeg = (p1, p2) => {
+    const k1 = key(p1[0], p1[1]);
+    if (!adj.has(k1)) adj.set(k1, []);
+    adj.get(k1).push({ p1, p2, used: false });
+  };
+
+  for (let y = 0; y < RES - 1; y++) {
+    for (let x = 0; x < RES - 1; x++) {
+      const tl = grid[y * RES + x], tr = grid[y * RES + x + 1];
+      const br = grid[(y + 1) * RES + x + 1], bl = grid[(y + 1) * RES + x];
+      const code = (tl << 3) | (tr << 2) | (br << 1) | bl;
+      if (code === 0 || code === 15) continue;
+      const T = [x * 2 + 1, y * 2], R = [x * 2 + 2, y * 2 + 1];
+      const B = [x * 2 + 1, y * 2 + 2], L = [x * 2, y * 2 + 1];
+      switch (code) {
+        case 1: addSeg(L, B); break;
+        case 2: addSeg(B, R); break;
+        case 3: addSeg(L, R); break;
+        case 4: addSeg(R, T); break;
+        case 5: addSeg(L, T); addSeg(B, R); break;
+        case 6: addSeg(B, T); break;
+        case 7: addSeg(L, T); break;
+        case 8: addSeg(T, L); break;
+        case 9: addSeg(T, B); break;
+        case 10: addSeg(T, R); addSeg(L, B); break;
+        case 11: addSeg(T, R); break;
+        case 12: addSeg(R, L); break;
+        case 13: addSeg(R, B); break;
+        case 14: addSeg(B, L); break;
+      }
+    }
+  }
+
+  const simpEps = +$('traceSimp').value || 1.2;
+  const loops = [];
+  for (const [, edges] of adj) {
+    for (const e of edges) {
+      if (e.used) continue;
+      e.used = true;
+      const pts = [e.p1, e.p2];
+      let cur = e.p2;
+      while (true) {
+        const list = adj.get(key(cur[0], cur[1]));
+        if (!list) break;
+        const nxt = list.find(x => !x.used);
+        if (!nxt) break;
+        nxt.used = true;
+        pts.push(nxt.p2);
+        cur = nxt.p2;
+        if (cur[0] === e.p1[0] && cur[1] === e.p1[1]) break;
+      }
+      if (pts.length >= 12) {
+        const simplified = rdpSimplify(pts, simpEps);
+        // Normalizar a coordenadas relativas al tamaño del logo [-0.5, 0.5]
+        const norm = simplified.map(([gx, gy]) => [
+          (gx / 2 - RES / 2) / drawSz,
+          (gy / 2 - RES / 2) / drawSz
+        ]);
+        loops.push(norm);
+      }
+    }
+  }
+
+  tracedPaths = loops;
+  const totalNodes = loops.reduce((acc, l) => acc + l.length, 0);
+  $('stNodes').textContent = String(totalNodes);
+}
+
+/* ---------- Contorno de Corte de la Tabla + Ranuras ---------- */
+function getBoardCutPoints(W, H, wmm) {
+  const pxPerMm = W / wmm;
+  const slotW = (+$('slotW').value || 2.85) * pxPerMm;
+  const slotH = (+$('slotH').value || 10) * pxPerMm;
+  const slotOffset = 25 * pxPerMm;
+  const r = 6 * pxPerMm;
+  return { pxPerMm, slotW, slotH, slotOffset, r };
+}
+
+function drawCutLines(ctx, W, H, wmm) {
+  const showBorder = $('cutBorder').checked;
+  const showSlots = $('cutSlots').checked;
+  if (!showBorder && !showSlots) return;
+
+  const { pxPerMm, slotW, slotH, slotOffset, r } = getBoardCutPoints(W, H, wmm);
+  ctx.save();
+  ctx.strokeStyle = '#ff2e2e';
+  ctx.lineWidth = ctx.svg ? Math.max(0.8, pxPerMm * 0.2) : Math.max(2, pxPerMm * 0.45);
+
+  if (showBorder && showSlots) {
+    const s1x = slotOffset, s2x = W - slotOffset - slotW;
+    ctx.beginPath();
+    ctx.moveTo(r, 0);
+    ctx.arcTo(W, 0, W, H, r);
+    ctx.arcTo(W, H, 0, H, r);
+    ctx.lineTo(s2x + slotW, H);
+    ctx.lineTo(s2x + slotW, H - slotH);
+    ctx.lineTo(s2x, H - slotH);
+    ctx.lineTo(s2x, H);
+    ctx.lineTo(s1x + slotW, H);
+    ctx.lineTo(s1x + slotW, H - slotH);
+    ctx.lineTo(s1x, H - slotH);
+    ctx.lineTo(s1x, H);
+    ctx.arcTo(0, H, 0, 0, r);
+    ctx.arcTo(0, 0, W, 0, r);
+    ctx.closePath();
+    ctx.stroke();
+  } else if (showBorder) {
+    rrect(ctx, 0, 0, W, H, r);
+    ctx.stroke();
+  } else if (showSlots) {
+    ctx.strokeRect(slotOffset, H - slotH, slotW, slotH);
+    ctx.strokeRect(W - slotOffset - slotW, H - slotH, slotW, slotH);
+  }
+  ctx.restore();
+}
+
+/* ---------- Textura Madera Compensada ---------- */
+function seeded(s) { return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function drawWood(ctx, W, H) {
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#e6cca8'); g.addColorStop(0.5, '#ddb98b'); g.addColorStop(1, '#d1ad7e');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const rnd = seeded(42);
+  ctx.lineWidth = Math.max(1, W / 500);
+  for (let i = 0; i < 160; i++) {
+    const x = rnd() * W, y = rnd() * H, len = (0.03 + rnd() * 0.09) * W, ang = (rnd() - 0.5) * 0.4;
+    ctx.strokeStyle = `rgba(95,55,20,${0.04 + rnd() * 0.07})`;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(ang) * len, y + Math.sin(ang) * len); ctx.stroke();
+  }
+}
+
+function drawLightBurnGrid(ctx, W, H, wmm, hmm) {
+  ctx.fillStyle = '#f5f6f8';
+  ctx.fillRect(0, 0, W, H);
+  const pxMm = W / wmm;
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= wmm; x += 5) {
+    ctx.strokeStyle = x % 10 === 0 ? '#d0d5dd' : '#e6e9ef';
+    ctx.beginPath(); ctx.moveTo(x * pxMm, 0); ctx.lineTo(x * pxMm, H); ctx.stroke();
+  }
+  for (let y = 0; y <= hmm; y += 5) {
+    ctx.strokeStyle = y % 10 === 0 ? '#d0d5dd' : '#e6e9ef';
+    ctx.beginPath(); ctx.moveTo(0, y * pxMm); ctx.lineTo(W, y * pxMm); ctx.stroke();
+  }
+}
+
+/* ---------- Escena y Bloques Interactivos ---------- */
+const LABELS = {
+  name: 'Nombre del negocio (C00)',
+  top: 'Título principal (C00)',
+  stars: '5 Estrellas (C00)',
+  clogo: 'Logo central (C00 / Trazado)',
+  subtxt: 'Subtítulo / @usuario (C00)',
+  qr: 'Código QR (C00)',
+  nfc: 'Bloque NFC (C00)'
+};
+const ov = {};
+let items = [], sel = null, drag = null;
+
+// filterMode: 'all' | 'engrave_only' (para rasterizar G-Code C00 sin líneas rojas/azules)
+function drawScene(ctx, W, H, filterMode = 'all', isExportSVG = false) {
+  ctx.clearRect(0, 0, W, H);
+  const { wmm, hmm } = dims();
+  const vMode = $('viewMode').value;
+
+  if (filterMode === 'engrave_only') {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+  } else if (!isExportSVG) {
+    if (vMode === 'wood') drawWood(ctx, W, H);
+    else drawLightBurnGrid(ctx, W, H, wmm, hmm);
+  }
+
+  const engCol = filterMode === 'engrave_only' || isExportSVG || vMode === 'lightburn' ? '#000000' : '#261507';
+  const pad = W * 0.07;
+  const out = [];
+
+  // 1. Nombre del Negocio
+  const nm = $('name').value.trim();
+  if (nm) {
+    const sp = fontSpec('fname');
+    const fs = W * 0.058 * ($('nmk').value / 100) * sp.k;
+    const f = `${sp.w} ${fs}px${sp.css}`;
+    ctx.font = f;
+    const lines = parseLines(ctx, nm, W - pad * 2), lh = fs * 1.18;
+    const bw = Math.max(...lines.map(l => ctx.measureText(l).width));
+    out.push({
+      id: 'name', w: bw, h: lines.length * lh, dcx: W * 0.5, dcy: H * 0.09,
+      fn: () => {
+        ctx.fillStyle = engCol; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = f;
+        lines.forEach((l, i) => ctx.fillText(l, 0, (i - (lines.length - 1) / 2) * lh));
+      }
+    });
+  }
+
+  // 2. Título Principal
+  const topTxt = $('top').value.trim();
+  if (topTxt) {
+    const sp = fontSpec('ftop');
+    const fs = W * 0.095 * ($('fsz').value / 100) * sp.k;
+    const f = `${sp.w} ${fs}px${sp.css}`;
+    ctx.font = f;
+    const lines = parseLines(ctx, topTxt, W - pad * 1.5), lh = fs * 1.12;
+    const bw = Math.max(...lines.map(l => ctx.measureText(l).width));
+    const defaultY = lines.length > 1 ? H * 0.21 : H * 0.18;
+    out.push({
+      id: 'top', w: bw, h: lines.length * lh, dcx: W * 0.5, dcy: defaultY,
+      fn: () => {
+        ctx.fillStyle = engCol; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = f;
+        lines.forEach((l, i) => ctx.fillText(l, 0, (i - (lines.length - 1) / 2) * lh));
+      }
+    });
+  }
+
+  // 3. Cinco Estrellas
+  if ($('stars').checked) {
+    const sz = W * 0.125;
+    out.push({
+      id: 'stars', w: sz * 5.4, h: sz, dcx: W * 0.5, dcy: H * 0.285,
+      fn: () => {
+        ctx.fillStyle = engCol;
+        for (let i = 0; i < 5; i++) {
+          starPath(ctx, (i - 2) * sz * 1.1, 0, sz * 0.48);
+          ctx.fill();
+        }
+      }
+    });
+  }
+
+  // 4. Logo Central + Trazos de Corte / Marcado
+  const cType = $('cLogo').value;
+  if (cType !== 'none') {
+    const ls = W * ($('lscale').value / 100);
+    const hasStars = $('stars').checked;
+    const hasSub = Boolean($('subtxt').value.trim());
+    const logoY = hasStars ? H * 0.46 : (hasSub ? H * 0.42 : H * 0.46);
+    const lMode = $('logoLayerMode').value;
+
+    out.push({
+      id: 'clogo', w: ls * 1.1, h: ls, dcx: W * 0.5, dcy: logoY, ls,
+      fn: () => {
+        const shouldEngrave = lMode === 'engrave' || lMode === 'engrave_cut';
+        const shouldTrace = lMode === 'engrave_cut' || lMode === 'cut_all' || lMode === 'score_all';
+
+        if (shouldEngrave) {
+          if (cType === 'google') drawGoogleLogo(ctx, ls, engCol);
+          else if (cType === 'instagram') drawInstagramLogo(ctx, ls, engCol);
+          else if (cType === 'mercadopago') drawMercadoPagoLogo(ctx, ls, engCol);
+          else if (cType === 'custom' && customLogoImg) {
+            // Si es para grabado láser o SVG, rellenamos las regiones trazadas o dibujamos imagen
+            const k = Math.min(ls / customLogoImg.width, ls / customLogoImg.height);
+            const iw = customLogoImg.width * k, ih = customLogoImg.height * k;
+            ctx.drawImage(customLogoImg, -iw / 2, -ih / 2, iw, ih);
+          }
+        }
+
+        if (shouldTrace && filterMode !== 'engrave_only' && tracedPaths.length > 0) {
+          ctx.save();
+          ctx.strokeStyle = lMode === 'score_all' ? '#0088ff' : '#ff2e2e';
+          const pxMm = W / wmm;
+          ctx.lineWidth = ctx.svg ? Math.max(0.8, pxMm * 0.2) : Math.max(1.8, pxMm * 0.38);
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+          for (const loop of tracedPaths) {
+            if (loop.length < 2) continue;
+            ctx.beginPath();
+            loop.forEach(([nx, ny], idx) => {
+              if (idx === 0) ctx.moveTo(nx * ls, ny * ls);
+              else ctx.lineTo(nx * ls, ny * ls);
+            });
+            ctx.closePath();
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+    });
+  }
+
+  // 5. Subtítulo / @usuario
+  const sub = $('subtxt').value.trim();
+  if (sub) {
+    const sp = fontSpec('fname');
+    const fs = W * 0.068 * sp.k;
+    const f = `${sp.w} ${fs}px${sp.css}`;
+    ctx.font = f;
+    const bw = ctx.measureText(sub).width;
+    out.push({
+      id: 'subtxt', w: bw, h: fs * 1.2, dcx: W * 0.5, dcy: H * 0.585,
+      fn: () => {
+        ctx.fillStyle = engCol; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = f;
+        ctx.fillText(sub, 0, 0);
+      }
+    });
+  }
+
+  // 6. Código QR
+  const qr = makeQR(), n = qr.getModuleCount();
+  const qSize = W * ($('qrsz').value / 100);
+  out.push({
+    id: 'qr', w: qSize, h: qSize, dcx: W * 0.28, dcy: H * 0.77,
+    fn: () => {
+      const x0 = -qSize / 2, y0 = -qSize / 2, m = qSize / n;
+      ctx.fillStyle = engCol;
+      if (ctx.svg) {
+        ctx.beginPath();
+        for (let r = 0; r < n; r++) for (let c = 0; c < n;) {
+          if (!qr.isDark(r, c)) { c++; continue; }
+          let e = c; while (e < n && qr.isDark(r, e)) e++;
+          const X = x0 + c * m, X2 = x0 + e * m, Y = y0 + r * m;
+          ctx.moveTo(X, Y); ctx.lineTo(X2, Y); ctx.lineTo(X2, Y + m); ctx.lineTo(X, Y + m); ctx.closePath();
+          c = e;
+        }
+        ctx.fill();
+      } else {
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+          if (qr.isDark(r, c)) ctx.fillRect(x0 + c * m, y0 + r * m, m + 0.45, m + 0.45);
+      }
+    }
+  });
+
+  // 7. Bloque NFC
+  if ($('nfcOn').checked) {
+    const ns = W * ($('nfcSize').value / 100);
+    const cap = $('nfcCap').value.trim();
+    out.push({
+      id: 'nfc', w: ns * 1.05, h: ns * 0.95, dcx: W * 0.73, dcy: H * 0.77,
+      fn: () => drawNFCBlock(ctx, ns, engCol, cap)
+    });
+  }
+
+  out.forEach(i => {
+    const o = ov[i.id] || { dx: 0, dy: 0, s: 1 };
+    i.s = o.s;
+    i.cx = i.dcx + o.dx * W;
+    i.cy = i.dcy + o.dy * W;
+    ctx.save();
+    ctx.translate(i.cx, i.cy);
+    ctx.scale(i.s, i.s);
+    i.fn();
+    ctx.restore();
+  });
+
+  if (filterMode !== 'engrave_only') {
+    drawCutLines(ctx, W, H, wmm);
+  }
+
+  return out;
+}
+
+/* ---------- Simulación Visual de Escaneo Láser y Estimación de Tiempo ---------- */
+function drawScanOverlay(ctx, W, H) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(251, 188, 4, 0.32)';
+  ctx.lineWidth = 1;
+  for (let y = 4; y < H; y += 5) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  // Punto de Origen (0,0)
+  const orig = $('originMode').value;
+  const ox = orig === 'center' ? W / 2 : 0;
+  const oy = orig === 'center' ? H / 2 : H;
+  ctx.fillStyle = '#ff2e2e';
+  ctx.beginPath(); ctx.arc(ox, oy, 7, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+}
+
+function updateStats() {
+  const { wmm, hmm } = dims();
+  const engSpd = +$('engSpd').value || 4500;
+  const engPwr = +$('engPwr').value || 50;
+  const engInt = +$('engInt').value || 0.10;
+  const cutSpd = +$('cutSpd').value || 240;
+  const cutPass = +$('cutPass').value || 1;
+
+  $('stArea').textContent = `${wmm} ×${hmm} mm`;
+  $('stEng').textContent = `${engSpd} mm/m @ ${engPwr}%`;
+
+  // Estimación realista del tiempo de trabajo (Grabado + Corte)
+  const activeHeightMm = hmm * 0.78;
+  const scanLines = activeHeightMm / engInt;
+  const avgScanSpanMm = wmm * 0.58;
+  const engraveMin = (scanLines * avgScanSpanMm) / engSpd * 1.22; // +22% por aceleración en extremos
+  const perimMm = (wmm + hmm) * 2 + 60;
+  const cutMin = (perimMm * cutPass) / cutSpd;
+  const totalMin = Math.max(1, Math.round(engraveMin + cutMin));
+  $('stTime').textContent = `~${totalMin} min`;
+}
+
+/* ---------- Generador de G-Code GRBL 1.1 (Creality CR Falcon 10W) ---------- */
+function generateBoardGCode() {
+  const { wmm, hmm } = dims();
+  const engSpd = +$('engSpd').value || 4500;
+  const engPwr = Math.round((+$('engPwr').value || 50) * 10); // S0 - S1000
+  const engInt = Math.max(0.05, +$('engInt').value || 0.10);
+  const lineSpd = +$('lineSpd').value || 2200;
+  const linePwr = Math.round((+$('linePwr').value || 60) * 10);
+  const linePass = +$('linePass').value || 1;
+  const cutSpd = +$('cutSpd').value || 240;
+  const cutPwr = Math.round((+$('cutPwr').value || 100) * 10);
+  const cutPass = +$('cutPass').value || 1;
+  const overscan = +$('overscan').value || 2.5;
+  const orig = $('originMode').value;
+
+  const offX = orig === 'center' ? -wmm / 2 : 0;
+  const offY = orig === 'center' ? -hmm / 2 : 0;
+  const fx = x => (x + offX).toFixed(2);
+  const fy = y => (y + offY).toFixed(2); // Y+ hacia arriba en GRBL
+
+  const g = [];
+  g.push(`; ==========================================`);
+  g.push(`; FalconBurn Studio - G-Code para GRBL 1.1`);
+  g.push(`; Maquina: Creality CR Falcon 10W (S-Max 1000)`);
+  g.push(`; Material: Madera de fibra compensada 3mm`);
+  g.push(`; Dimensiones: ${wmm} x${hmm} mm`);
+  g.push(`; C00 Grabado: ${engSpd} mm/min | Power ${engPwr / 10}\% \vert{} Interv${engInt} mm`);
+  g.push(`; C02 Corte:   ${cutSpd} mm/min | Power ${cutPwr / 10}\% \vert{}${cutPass} pasada(s)`);
+  g.push(`; ==========================================`);
+  g.push(`G21 ; Unidades en mm`);
+  g.push(`G90 ; Posicionamiento absoluto`);
+  g.push(`G94 ; Avance en mm/min`);
+  g.push(`M5 S0`);
+
+  // 1. Rasterizado de alta precisión para Capa C00 (Grabado)
+  const pxPerMm = Math.min(12, Math.max(4, Math.round(1 / engInt)));
+  const RW = Math.round(wmm * pxPerMm);
+  const RH = Math.round(hmm * pxPerMm);
+  const rcv = document.createElement('canvas');
+  rcv.width = RW; rcv.height = RH;
+  const rctx = rcv.getContext('2d');
+  const renderedItems = drawScene(rctx, RW, RH, 'engrave_only', false);
+  const img = rctx.getImageData(0, 0, RW, RH).data;
+
+  g.push(``);
+  g.push(`; --- CAPA C00: GRABADO RASTER (SCANLINE) ---`);
+  g.push(`M4 S0 ; Modo potencia dinamica GRBL`);
+
+  const totalRows = Math.floor(hmm / engInt);
+  let leftToRight = true;
+
+  for (let r = 0; r <= totalRows; r++) {
+    const yMm = r * engInt; // desde abajo (0) hacia arriba (hmm)
+    const py = Math.min(RH - 1, Math.max(0, Math.round((hmm - yMm) * pxPerMm)));
+    const rowOff = py * RW * 4;
+
+    // Buscar tramos oscuros en la línea
+    const segs = [];
+    let inSeg = false, sStart = 0;
+    for (let px = 0; px < RW; px++) {
+      const idx = rowOff + px * 4;
+      const dark = img[idx] < 160;
+      if (dark && !inSeg) { inSeg = true; sStart = px / pxPerMm; }
+      else if (!dark && inSeg) { inSeg = false; segs.push([sStart, px / pxPerMm]); }
+    }
+    if (inSeg) segs.push([sStart, wmm]);
+    if (segs.length === 0) continue;
+
+    const firstX = segs[0][0], lastX = segs[segs.length - 1][1];
+    if (leftToRight) {
+      const preX = Math.max(0, firstX - overscan);
+      g.push(`G0 X${fx(preX)} Y${fy(yMm)}`);
+      g.push(`G1 X${fx(firstX)} S0 F${engSpd}`);
+      let curX = firstX;
+      for (const [x0, x1] of segs) {
+        if (x0 > curX) g.push(`G1 X${fx(x0)} S0`);
+        g.push(`G1 X${fx(x1)} S${engPwr}`);
+        curX = x1;
+      }
+      const postX = Math.min(wmm, lastX + overscan);
+      if (postX > curX) g.push(`G1 X${fx(postX)} S0`);
+    } else {
+      const preX = Math.min(wmm, lastX + overscan);
+      g.push(`G0 X${fx(preX)} Y${fy(yMm)}`);
+      g.push(`G1 X${fx(lastX)} S0 F${engSpd}`);
+      let curX = lastX;
+      for (let i = segs.length - 1; i >= 0; i--) {
+        const [x0, x1] = segs[i];
+        if (x1 < curX) g.push(`G1 X${fx(x1)} S0`);
+        g.push(`G1 X${fx(x0)} S${engPwr}`);
+        curX = x0;
+      }
+      const postX = Math.max(0, firstX - overscan);
+      if (postX < curX) g.push(`G1 X${fx(postX)} S0`);
+    }
+    leftToRight = !leftToRight;
+  }
+  g.push(`M5 S0`);
+
+  // 2. Trazos Vectoriales del Logo (C01 Marcado o C02 Corte)
+  const lMode = $('logoLayerMode').value;
+  const logoItem = renderedItems.find(i => i.id === 'clogo');
+  if (logoItem && tracedPaths.length > 0 && lMode !== 'engrave') {
+    const isScore = lMode === 'score_all';
+    const vSpd = isScore ? lineSpd : cutSpd;
+    const vPwr = isScore ? linePwr : cutPwr;
+    const vPass = isScore ? linePass : cutPass;
+    const cxMm = logoItem.cx / pxPerMm;
+    const cyTopMm = logoItem.cy / pxPerMm;
+    const scaleMm = (logoItem.ls * logoItem.s) / pxPerMm;
+
+    g.push(``);
+    g.push(`; --- ${isScore ? 'CAPA C01: TRAZADO LOGO' : 'CAPA C02: CORTE INTERNO LOGO'} ---`);
+    g.push(`${isScore ? 'M4' : 'M3'} S0`);
+    for (let p = 1; p <= vPass; p++) {
+      g.push(`; Pasada ${p} de${vPass}`);
+      for (const loop of tracedPaths) {
+        if (loop.length < 2) continue;
+        const [nx0, ny0] = loop[0];
+        const x0 = cxMm + nx0 * scaleMm;
+        const y0 = hmm - (cyTopMm + ny0 * scaleMm);
+        g.push(`G0 X${fx(x0)} Y${fy(y0)}`);
+        for (let k = 1; k < loop.length; k++) {
+          const [nx, ny] = loop[k];
+          const x = cxMm + nx * scaleMm;
+          const y = hmm - (cyTopMm + ny * scaleMm);
+          g.push(`G1 X${fx(x)} Y${fy(y)} S${vPwr} F${vSpd}`);
+        }
+        g.push(`G1 X${fx(x0)} Y${fy(y0)} S${vPwr} F${vSpd}`);
+        g.push(`G1 S0`);
+      }
+    }
+    g.push(`M5 S0`);
+  }
+
+  // 3. Contorno Exterior y Ranuras de la Tabla (C02 Corte 3mm)
+  const showBorder = $('cutBorder').checked;
+  const showSlots = $('cutSlots').checked;
+  if (showBorder || showSlots) {
+    const slotW = +$('slotW').value || 2.85;
+    const slotH = +$('slotH').value || 10;
+    const slotOff = 25;
+    const s1x = slotOff, s2x = wmm - slotOff - slotW;
+
+    g.push(``);
+    g.push(`; --- CAPA C02: CORTE CONTORNO TABLA 3MM ---`);
+    g.push(`M3 S0`);
+    for (let p = 1; p <= cutPass; p++) {
+      g.push(`; Pasada exterior ${p} de${cutPass}`);
+      if (showBorder && showSlots) {
+        // Polígono cerrado con las 2 ranuras inferiores en Y=0
+        const pts = [
+          [0, 0], [s1x, 0], [s1x, slotH], [s1x + slotW, slotH], [s1x + slotW, 0],
+          [s2x, 0], [s2x, slotH], [s2x + slotW, slotH], [s2x + slotW, 0],
+          [wmm, 0], [wmm, hmm], [0, hmm], [0, 0]
+        ];
+        g.push(`G0 X${fx(pts[0][0])} Y${fy(pts[0][1])}`);
+        for (let i = 1; i < pts.length; i++) {
+          g.push(`G1 X${fx(pts[i][0])} Y${fy(pts[i][1])} S${cutPwr} F${cutSpd}`);
+        }
+        g.push(`G1 S0`);
+      } else if (showBorder) {
+        g.push(`G0 X${fx(0)} Y${fy(0)}`);
+        g.push(`G1 X${fx(wmm)} Y${fy(0)} S${cutPwr} F${cutSpd}`);
+        g.push(`G1 X${fx(wmm)} Y${fy(hmm)}`);
+        g.push(`G1 X${fx(0)} Y${fy(hmm)}`);
+        g.push(`G1 X${fx(0)} Y${fy(0)}`);
+        g.push(`G1 S0`);
+      } else if (showSlots) {
+        [s1x, s2x].forEach(sx => {
+          g.push(`G0 X${fx(sx)} Y${fy(0)}`);
+          g.push(`G1 X${fx(sx)} Y${fy(slotH)} S${cutPwr} F${cutSpd}`);
+          g.push(`G1 X${fx(sx + slotW)} Y${fy(slotH)}`);
+          g.push(`G1 X${fx(sx + slotW)} Y${fy(0)}`);
+          g.push(`G1 X${fx(sx)} Y${fy(0)}`);
+          g.push(`G1 S0`);
+        });
+      }
+    }
+    g.push(`M5 S0`);
+  }
+
+  g.push(``);
+  g.push(`; --- FIN DEL TRABAJO ---`);
+  g.push(`M5 S0`);
+  g.push(`G0 X0 Y0 F3000`);
+  g.push(`M2`);
+  return g.join('\n');
+}
+
+function generateFeetGCode() {
+  const sw = +$('slotW').value || 2.85;
+  const sh = +$('slotH').value || 10;
+  const cutSpd = +$('cutSpd').value || 240;
+  const cutPwr = Math.round((+$('cutPwr').value || 100) * 10);
+  const cutPass = +$('cutPass').value || 1;
+  const fw = 50, fh = 20;
+
+  const g = [
+    `; FalconBurn Studio - G-Code Patitas de Base (2 unidades)`,
+    `; Material: Madera Compensada 3mm | Kerf: ${sw}mm`,
+    `G21`, `G90`, `G94`, `M3 S0`
+  ];
+
+  const footPts = (ox, oy) => {
+    const sx = ox + (fw - sw) / 2;
+    return [
+      [ox, oy], [ox + fw, oy], [ox + fw, oy + fh],
+      [sx + sw, oy + fh], [sx + sw, oy + fh - sh],
+      [sx, oy + fh - sh], [sx, oy + fh],
+      [ox, oy + fh], [ox, oy]
+    ];
+  };
+
+  const f1 = footPts(2, 2), f2 = footPts(58, 2);
+  for (let p = 1; p <= cutPass; p++) {
+    g.push(`; Pasada ${p} de ${cutPass}`);
+    [f1, f2].forEach(pts => {
+      g.push(`G0 X${pts[0][0].toFixed(2)} Y${pts[0][1].toFixed(2)}`);
+      for (let i = 1; i < pts.length; i++) {
+        g.push(`G1 X${pts[i][0].toFixed(2)} Y${pts[i][1].toFixed(2)} S${cutPwr} F${cutSpd}`);
+      }
+      g.push(`G1 S0`);
+    });
+  }
+  g.push(`M5 S0`, `G0 X0 Y0 F3000`, `M2`);
+  return g.join('\n');
+}
+
+/* ---------- Grabador SVG (Escala 1:1 en mm para LightBurn) ---------- */
+function svgRecorder() {
+  const defs = [], body = [], ids = new Map(); let uid = 0;
+  const meas = document.createElement('canvas').getContext('2d');
+  const f = v => +(+v).toFixed(3), fm = v => +(+v).toFixed(5);
+  const mul = (m, n) => [m[0]*n[0]+m[2]*n[1], m[1]*n[0]+m[3]*n[1], m[0]*n[2]+m[2]*n[3], m[1]*n[2]+m[3]*n[3], m[0]*n[4]+m[2]*n[5]+m[4], m[1]*n[4]+m[3]*n[5]+m[5]];
+  const esc = t => String(t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  let m = [1, 0, 0, 1, 0, 0], d = '', cur = [0, 0], st0 = [0, 0];
+  const stack = [], KEYS = ['fillStyle', 'strokeStyle', 'lineWidth', 'lineCap', 'lineJoin', 'font', 'textAlign', 'textBaseline', 'globalAlpha'];
+  const fa = (v, pre) => ` ${pre}="${v}"`;
+  const tf = () => m.join() === '1,0,0,1,0,0' ? '' : ` transform="matrix(${m.map(fm).join(' ')})"`;
+  const c = {
+    svg: true, fillStyle: '#000', strokeStyle: '#000', lineWidth: 1, lineCap: 'butt', lineJoin: 'miter', font: '10px sans-serif',
+    textAlign: 'start', textBaseline: 'alphabetic', globalAlpha: 1,
+    stk() { return fa(c.strokeStyle, 'stroke') + ` stroke-width="${f(c.lineWidth)}" stroke-linecap="${c.lineCap}" stroke-linejoin="${c.lineJoin}"`; },
+    save() { stack.push({ m: m.slice(), s: Object.fromEntries(KEYS.map(k => [k, c[k]])) }); },
+    restore() { const t = stack.pop(); if (t) { m = t.m; Object.assign(c, t.s); } },
+    translate(x, y) { m = mul(m, [1, 0, 0, 1, x, y]); },
+    scale(x, y) { m = mul(m, [x, 0, 0, y, 0, 0]); },
+    clearRect() {},
+    measureText(t) { meas.font = c.font; return meas.measureText(t); },
+    beginPath() { d = ''; },
+    moveTo(x, y) { d += `M${f(x)} ${f(y)}`; cur = [x, y]; st0 = [x, y]; },
+    lineTo(x, y) { d += `${d ? 'L' : 'M'}${f(x)} ${f(y)}`; cur = [x, y]; },
+    closePath() { d += 'Z'; cur = st0; },
+    ellipse(cx, cy, rx, ry) {
+      d += `M${f(cx - rx)} ${f(cy)}A${f(rx)} ${f(ry)} 0 1 0 ${f(cx + rx)} ${f(cy)}A${f(rx)} ${f(ry)} 0 1 0 ${f(cx - rx)} ${f(cy)}Z`;
+    },
+    quadraticCurveTo(cpx, cpy, x, y) {
+      d += `Q${f(cpx)} ${f(cpy)} ${f(x)} ${f(y)}`; cur = [x, y];
+    },
+    arc(cx, cy, r, a0, a1, ccw = false) {
+      const P = a => [cx + r * Math.cos(a), cy + r * Math.sin(a)], p0 = P(a0), R = `${f(r)} ${f(r)} 0`;
+      d += `${d ? 'L' : 'M'}${f(p0[0])} ${f(p0[1])}`;
+      let da = ccw ? a0 - a1 : a1 - a0;
+      while (da < 0) da += Math.PI * 2;
+      if (Math.abs(a1 - a0) >= 2 * Math.PI - 1e-4) {
+        const p1 = P(a0 + Math.PI);
+        d += `A${R} 1 ${ccw ? 0 : 1} ${f(p1[0])} ${f(p1[1])}A${R} 1 ${ccw ? 0 : 1} ${f(p0[0])} ${f(p0[1])}`;
+      } else {
+        const p1 = P(a1);
+        d += `A${R} ${da > Math.PI ? 1 : 0} ${ccw ? 0 : 1} ${f(p1[0])} ${f(p1[1])}`;
+        cur = p1;
+      }
+    },
+    arcTo(x1, y1, x2, y2, r) {
+      const [x0, y0] = cur, l1 = Math.hypot(x0 - x1, y0 - y1), l2 = Math.hypot(x2 - x1, y2 - y1);
+      if (!l1 || !l2 || !r) return c.lineTo(x1, y1);
+      const u1 = [(x0 - x1) / l1, (y0 - y1) / l1], u2 = [(x2 - x1) / l2, (y2 - y1) / l2];
+      const ang = Math.acos(Math.max(-1, Math.min(1, u1[0] * u2[0] + u1[1] * u2[1]))), t = r / Math.tan(ang / 2);
+      const a = [x1 + u1[0] * t, y1 + u1[1] * t], b = [x1 + u2[0] * t, y1 + u2[1] * t];
+      c.lineTo(a[0], a[1]);
+      d += `A${f(r)} ${f(r)} 0 0 ${u1[0] * u2[1] - u1[1] * u2[0] < 0 ? 1 : 0} ${f(b[0])} ${f(b[1])}`; cur = b;
+    },
+    fill() { if (d) body.push(`<path d="${d}"${fa(c.fillStyle, 'fill')}${tf()}/>`); },
+    stroke() { if (d) body.push(`<path d="${d}" fill="none"${c.stk()}${tf()}/>`); },
+    fillRect(x, y, w, h) { body.push(`<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}"${fa(c.fillStyle, 'fill')}${tf()}/>`); },
+    strokeRect(x, y, w, h) { body.push(`<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" fill="none"${c.stk()}${tf()}/>`); },
+    fillText(t, x, y) {
+      const q = c.font.match(/^(\d+)\s+([\d.]+)px\s+(.+)$/) || [0, 700, 16, 'sans-serif'], fs = +q[2];
+      const dy = c.textBaseline === 'middle' ? fs * 0.35 : c.textBaseline === 'top' ? fs * 0.8 : 0;
+      const an = c.textAlign === 'center' ? 'middle' : c.textAlign === 'right' ? 'end' : 'start';
+      body.push(`<text x="${f(x)}" y="${f(y + dy)}" font-family="${q[3].replace(/"/g, "'")}" font-size="${f(fs)}" font-weight="${q[1]}" text-anchor="${an}"${fa(c.fillStyle, 'fill')}${tf()}>${esc(t)}</text>`);
+    },
+    drawImage(img, x, y, w, h) {
+      const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+      let id = ids.get(img);
+      if (!id) {
+        id = 'i' + (++uid); ids.set(img, id);
+        defs.push(`<image id="${id}" width="${nw}" height="${nh}" xlink:href="${img.src}"/>`);
+      }
+      const mm = mul(m, [w / nw, 0, 0, h / nh, x, y]);
+      body.push(`<use xlink:href="#${id}" transform="matrix(${mm.map(fm).join(' ')})"/>`);
+    },
+    toSVG(wmm, hmm, W, H) {
+      return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${wmm}mm" height="${hmm}mm" viewBox="0 0 ${W} ${H}">\n<defs>${defs.join('\n')}</defs>\n${body.join('\n')}\n</svg>`;
+    }
+  };
+  return c;
+}
+
+/* ---------- Interacción: Mover y Escalar cada elemento ---------- */
+const cv0 = $('cv');
+const pt = e => {
+  const r = cv0.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * cv0.width / r.width, y: (e.clientY - r.top) * cv0.height / r.height };
+};
+function corners(it) {
+  const lw = cv0.width / 420, hw = it.w * it.s / 2 + lw * 4, hh = it.h * it.s / 2 + lw * 4;
+  return [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sy]) => ({ x: it.cx + sx * hw, y: it.cy + sy * hh, lw }));
+}
+function handleAt(p) {
+  const it = items.find(i => i.id === sel); if (!it) return null;
+  return corners(it).some(c => Math.hypot(p.x - c.x, p.y - c.y) < c.lw * 11) ? it : null;
+}
+function itemAt(p) {
+  for (let k = items.length - 1; k >= 0; k--) {
+    const i = items[k];
+    if (Math.abs(p.x - i.cx) <= i.w * i.s / 2 + 8 && Math.abs(p.y - i.cy) <= i.h * i.s / 2 + 8) return i;
+  }
+  return null;
+}
+function drawSel(ctx, W) {
+  const it = items.find(i => i.id === sel); if (!it) return;
+  const cs = corners(it), lw = cs[0].lw;
+  ctx.save();
+  ctx.strokeStyle = '#fbbc04'; ctx.fillStyle = '#fbbc04'; ctx.lineWidth = lw * 1.6;
+  if (drag && Math.abs(it.cx - W / 2) < 2) {
+    ctx.setLineDash([lw * 4, lw * 4]);
+    ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, cv0.height); ctx.stroke();
+  }
+  ctx.setLineDash([lw * 5, lw * 4]);
+  ctx.strokeRect(cs[0].x, cs[0].y, cs[3].x - cs[0].x, cs[3].y - cs[0].y);
+  ctx.setLineDash([]);
+  cs.forEach(c => ctx.fillRect(c.x - lw * 4, c.y - lw * 4, lw * 8, lw * 8));
+  ctx.restore();
+}
+
+cv0.addEventListener('pointerdown', e => {
+  const p = pt(e), h = handleAt(p), it = h || itemAt(p);
+  sel = it ? it.id : null;
+  if (it) {
+    const o = ov[it.id] = ov[it.id] || { dx: 0, dy: 0, s: 1 };
+    drag = { id: it.id, mode: h ? 'scale' : 'move', px: p.x, py: p.y, o: { ...o }, d0: Math.max(1, Math.hypot(p.x - it.cx, p.y - it.cy)) };
+    cv0.setPointerCapture(e.pointerId);
+  }
+  render();
+});
+cv0.addEventListener('pointermove', e => {
+  const p = pt(e);
+  if (!drag) { cv0.style.cursor = handleAt(p) ? 'nwse-resize' : itemAt(p) ? 'move' : 'default'; return; }
+  const it = items.find(i => i.id === drag.id), o = ov[drag.id], W = cv0.width;
+  if (!it) return;
+  if (drag.mode === 'scale') {
+    o.s = Math.min(6, Math.max(0.2, drag.o.s * Math.hypot(p.x - it.cx, p.y - it.cy) / drag.d0));
+  } else {
+    o.dx = drag.o.dx + (p.x - drag.px) / W;
+    o.dy = drag.o.dy + (p.y - drag.py) / W;
+    if (Math.abs(it.dcx + o.dx * W - W / 2) < W * 0.012) o.dx = (W / 2 - it.dcx) / W;
+  }
+  render();
+});
+['pointerup', 'pointercancel'].forEach(t => cv0.addEventListener(t, () => { drag = null; render(); }));
+cv0.addEventListener('dblclick', e => { const it = itemAt(pt(e)); if (it) { delete ov[it.id]; render(); } });
+
+$('reset').addEventListener('click', () => { Object.keys(ov).forEach(k => delete ov[k]); sel = null; render(); });$('toggleSim').addEventListener('click', () => {
+  showScanPreview = !showScanPreview;
+  $('toggleSim').textContent = showScanPreview ? '🙈 Ocultar Escaneo Láser' : '🔍 Ver Lineas de Escaneo Láser';
+  render();
+});
+
+/* ---------- Controles y Eventos de Auto-Trace ---------- */
+const rangeMap = {
+  lscale: 'lval', nmk: 'nmkv', fsz: 'fszv', qrsz: 'qrszv', nfcSize: 'nfcSv',
+  traceThr: 'thrVal', traceOff: 'offVal', traceSimp: 'simpVal'
+};
+Object.keys(rangeMap).forEach(id => {
+  $(id).addEventListener('input', () => { $(rangeMap[id]).textContent =$(id).value; });
+});
+
+['traceThr', 'traceOff', 'traceSimp', 'traceMode', 'traceOuterOnly', 'traceInvert', 'lscale'].forEach(id => {
+  $(id).addEventListener('input', () => { rebuildTrace(); render(); });$(id).addEventListener('change', () => { rebuildTrace(); render(); });
+});
+
+$('logo').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) { customLogoImg = null; rebuildTrace(); return render(); }
+  const rd = new FileReader();
+  rd.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      customLogoImg = im;
+      // Al subir imagen propia activamos grabado + corte exterior por defecto
+      if ($('logoLayerMode').value === 'engrave')$('logoLayerMode').value = 'engrave_cut';
+      rebuildTrace();
+      render();
+    };
+    im.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+});
+
+$('ctl').addEventListener('input', render);$('ctl').addEventListener('change', render);
+
+function render() {
+  const { wcm, hcm } = dims();
+  cv0.width = 780;
+  cv0.height = Math.round(780 * hcm / wcm);
+  const ctx = cv0.getContext('2d');
+  items = drawScene(ctx, cv0.width, cv0.height, 'all', false);
+  if (showScanPreview) drawScanOverlay(ctx, cv0.width, cv0.height);
+  drawSel(ctx, cv0.width);
+  updateStats();
+  $('hint').textContent = sel && items.some(i => i.id === sel)
+    ? `${LABELS[sel]}: arrastrá para mover, esquinas para escalar (Doble clic restaura).`
+    : 'Clic en cualquier elemento para moverlo/escalarlo. Rojo = Corte 3mm | Negro = Grabado 4500mm/m @ 50%.';
+}
+
+/* ---------- Exportación de Archivos (SVG, G-Code y PNG) ---------- */
+function saveBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2500);
+}
+
+$('btnSvgAll').addEventListener('click', async () => {
+  await loadFonts();
+  const { wcm, hcm, wmm, hmm } = dims();
+  const W = wmm * 10, H = hmm * 10;
+  const rec = svgRecorder();
+  drawScene(rec, W, H, 'all', true);
+  saveBlob(new Blob([rec.toSVG(wmm, hmm, W, H)], { type: 'image/svg+xml' }), `tabla-${$('preset').value}-${wcm}x${hcm}cm.svg`);
+});
+
+$('btnGcodeAll').addEventListener('click', async () => {
+  await loadFonts();
+  const prevText = $('btnGcodeAll').textContent;
+  $('btnGcodeAll').textContent = '⏳ Generando G-Code...';
+  setTimeout(() => {
+    const gcode = generateBoardGCode();
+    const { wcm, hcm } = dims();
+    saveBlob(new Blob([gcode], { type: 'text/plain;charset=utf-8' }), `falcon10w-tabla-${$('preset').value}-${wcm}x${hcm}cm.gcode`);
+    $('btnGcodeAll').textContent = prevText;
+  }, 30);
+});
+
+$('btnGcodeFeet').addEventListener('click', () => {
+  const sw = +$('slotW').value || 2.85;
+  const gcode = generateFeetGCode();
+  saveBlob(new Blob([gcode], { type: 'text/plain;charset=utf-8' }), `falcon10w-patitas-3mm-kerf-${sw}mm.gcode`);
+});
+
+$('btnSvgFeet').addEventListener('click', () => {
+  const sw = +$('slotW').value || 2.85;
+  const sh = +$('slotH').value || 10;
+  const fw = 50, fh = 20;
+  const footPath = (ox, oy) => {
+    const sx = ox + (fw - sw) / 2;
+    return `M${ox} ${oy + fh} L${ox} ${oy + 6} A6 6 0 0 1 ${ox + 6} ${oy} L${sx} ${oy} L${sx} ${oy + sh} L${sx + sw} ${oy + sh} L${sx + sw} ${oy} L${ox + fw - 6} ${oy} A6 6 0 0 1 ${ox + fw} ${oy + 6} L${ox + fw} ${oy + fh} Z`;
+  };
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="115mm" height="25mm" viewBox="0 0 115 25">\n  <path d="${footPath(2, 2)}" fill="none" stroke="#ff0000" stroke-width="0.2"/>\n  <path d="${footPath(58, 2)}" fill="none" stroke="#ff0000" stroke-width="0.2"/>\n</svg>`;
+  saveBlob(new Blob([svg], { type: 'image/svg+xml' }), `patitas-base-kerf-${sw}mm.svg`);
+});
+
+$('btnPng').addEventListener('click', async () => {
+  await loadFonts();
+  const { wcm, hcm } = dims();
+  const W = Math.round(wcm / 2.54 * 300), H = Math.round(hcm / 2.54 * 300);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  drawScene(c.getContext('2d'), W, H, 'all', false);
+  c.toBlob(b => saveBlob(b, `mockup-tabla-${$('preset').value}.png`), 'image/png');
+});
+
+populateFonts();
+try {
+  const sp = new URLSearchParams(window.location.search);
+  if (sp.get('name')) $('name').value = sp.get('name');
+  if (sp.get('url')) $('url').value = sp.get('url');
+} catch (e) {}
+loadFonts().then(() => {
+  rebuildTrace();
+  render();
+});
+</script>
+</body>
+</html>
