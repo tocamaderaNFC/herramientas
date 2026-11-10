@@ -119,6 +119,7 @@ button.alt{background:#212630;color:var(--tx);border:1px solid var(--line)}
     <label for="preset">Modelo rápido</label>
     <select id="preset">
       <option value="google" selected>⭐ Google Reviews (Calificanos)</option>
+      <option value="resenas">⭐ Reseñas genérico (vertical 10×13)</option>
       <option value="instagram">📸 Instagram (Seguinos)</option>
       <option value="mercadopago">🤝 Mercado Pago / Libre (Pagá acá)</option>
       <option value="cobros">💳 Cobros Digitales (Multi-Logos separados)</option>
@@ -234,6 +235,7 @@ button.alt{background:#212630;color:var(--tx);border:1px solid var(--line)}
         <label for="size">Medida de tabla</label>
         <select id="size">
           <option value="13x20" selected>130 × 200 mm (13×20 cm)</option>
+          <option value="10x13">100 × 130 mm (10×13 cm)</option>
           <option value="10x20">100 × 200 mm (10×20 cm)</option>
           <option value="14.8x21">148 × 210 mm (A5)</option>
           <option value="15x15">150 × 150 mm (15×15 cm)</option>
@@ -567,8 +569,11 @@ $('btnAlignLogos').addEventListener('click', () => {
 });
 
 /* ---------- Presets ---------- */
+let lastPreset = 'google';
+let lastNonResenasState = { size: '13x20', qrsz: '36', nfcSize: '32' };
 function applyPreset(presetName) {
   Object.keys(ov).forEach(k => delete ov[k]);
+  const sizeSel = $('size');
   if (presetName === 'google') {
     const sp = new URLSearchParams(window.location.search);
     if (!sp.get('name')) $('name').value = '';
@@ -599,6 +604,23 @@ function applyPreset(presetName) {
       createLogoObj('prex', 22, '', 0.50, 0.45),
       createLogoObj('santander', 22, 'Santander', 0.80, 0.45)
     ];
+  } else if (presetName === 'resenas') {
+    $('name').value = '';
+    $('top').value = 'DEJANOS TU RESEÑA';
+    $('stars').checked = true;
+    $('subtxt').value = '';
+    $('nfcOn').checked = true;
+    $('nfcCap').value = 'ACERCÁ TU CELULAR';
+    $('nfcSize').value = 20;
+    if ($('nfcSv')) $('nfcSv').textContent = '20';
+    $('qrsz').value = 40;
+    if ($('qrszv')) $('qrszv').textContent = '40';
+    $('size').value = '10x13';
+    $('cutBorder').checked = true;
+    $('cutSlots').checked = true;
+    $('slotW').value = 2.85;
+    $('slotH').value = 10;
+    logos = [];
   }
   sel = null;
   rebuildAllTraces();
@@ -606,7 +628,27 @@ function applyPreset(presetName) {
   render();
 }
 
-$('preset').addEventListener('change', () => applyPreset($('preset').value));
+$('preset').addEventListener('change', ev => {
+  const next = ev.target.value;
+  const prev = lastPreset;
+  if (next === 'resenas') {
+    lastNonResenasState = {
+      size: $('size').value,
+      qrsz: $('qrsz').value,
+      nfcSize: $('nfcSize').value
+    };
+  }
+  applyPreset(next);
+  if (prev === 'resenas' && next !== 'resenas') {
+    $('size').value = lastNonResenasState.size;
+    $('qrsz').value = lastNonResenasState.qrsz;
+    if ($('qrszv')) $('qrszv').textContent = lastNonResenasState.qrsz;
+    $('nfcSize').value = lastNonResenasState.nfcSize;
+    if ($('nfcSv')) $('nfcSv').textContent = lastNonResenasState.nfcSize;
+    render();
+  }
+  lastPreset = next;
+});
 
 /* ---------- Utilidades Geométricas ---------- */
 function dims() {
@@ -1152,10 +1194,11 @@ function updateNodeCount() {
 /* ---------- Contorno de Corte de la Tabla + Ranuras ---------- */
 function getBoardCutPoints(W, H, wmm) {
   const pxPerMm = W / wmm;
+  const geom = boardGeom();
   const slotW = (+$('slotW').value || 2.85) * pxPerMm;
   const slotH = (+$('slotH').value || 10) * pxPerMm;
-  const slotOffset = 25 * pxPerMm;
-  const r = 6 * pxPerMm;
+  const slotOffset = geom.slotOffsetMm * pxPerMm;
+  const r = geom.rMm * pxPerMm;
   return { pxPerMm, slotW, slotH, slotOffset, r };
 }
 
@@ -1237,6 +1280,335 @@ const LABELS = {
   nfc: 'Bloque NFC (C00)'
 };
 
+
+/* ---------- Preset Reseñas genérico (diseño v5 vertical 100×130, mm) ---------- */
+const RESENAS_BLOCKED_ID = '003';
+const RESENAS_V5 = {
+  w: 100, h: 130, r: 8,
+  slot: { offset: 18, w: 2.85, h: 10 },
+  nfc: {
+    fs: 7, capFs: 4, capBl: 19.41, capTracking: 0.08, tracking: 0.12,
+    phoneCx: 38.937, phoneCy: 10.405, phoneH: 6.2, phoneSw: 0.45,
+    markCx: 52.574, markCy: 10.405, markSw: 0.45,
+    waveRadii: [1.858, 3.008, 4.158], waveSpread: 0.82, waveGap: 0.55
+  },
+  title: { text: 'DEJANOS TU RESEÑA', fs: 8.04846, bl: 30.55, tracking: 0.1 },
+  google: { s: 18, cx: 50, cy: 41.04 },
+  stars: {
+    cx: 50, base: 57.57, R: 3.5, spacing: 11.54,
+    scales: [0.62, 0.80, 1, 0.80, 0.62], lowerK: Math.sin(54 * Math.PI / 180)
+  },
+  scan: { text: 'ESCANEÁ EL QR', fs: 4.17342, bl: 64.39, tracking: 0.08, ulOff: 0.5, aw: 2.6, ah: 1.5, aGap: 0.3 },
+  qr: { size: 40, cx: 50, cy: 92.3, quiet: 3, frameHalf: 23.35, frameL: 5.2, frameSw: 0.7 }
+};
+
+
+const RESENAS_QR_PACKED = {"001":"/jMz/BX9kG6CpLt0MEXbr9euwRvtB/qqr+AC3ACqH0iTxfNyR+KDb8NJkiwp/OXGgwclaqqtda2JKiOWXloO93NkrIHG6Y3pqS88+ABCLF/4CetwSpkYutPvhdOkze6lEnMEppIv7h39gA==","002":"/ksz/Bf9kG6WpLt0wEXbqdeuwQvtB/qqr+AE3ACqf0iTgzNyScyDb2opkiKlfOWgvwclSAqtaw+JKhNuXlsGt3NjhYHG+Pnpq+M8+ABqLF/5aetwQ5kYuqvvhdCkze6rEnMExpIv7V39gA==","003":"/lMz/BS9kG6WpLt0sEXbrleuwSftB/qqr+AI3ACqd0iT7DNyQdyDblPZkicw/OXU+wclyMqtbryJKqqmXllkN3NmrYHGkt3pquG8+AB+LF/4ietwQZkYupvvhdPEze68knMEApIv7P39gA==","004":"/i5j/BRWEG6sRrt1v7XboO8uwQVVB/qqr+AacgCCnMZ274yNrKJg4ZpjeYhkqbDAqb3PW6SVhwd21V+N0GbD3N37xVSTCFMCCDaE+4BV1GP4J+uQSjcSuia/1dGPY26H8f0ESW3f7UUeAA==","005":"/mMz/BX9kG6UpLt0MEXbqVeuwQftB/qqr+AN3ACqd0iRb3NyaoqDbwkpkiikfOXeQwcnOOqtfQuJKt6mXloLt3NruAHGyM3pqro8+AB+LF/4SetwQ5kYusPvhdAEze6oknMEcpIv6t39gA==","006":"/hsz/Bf9kG6ApLt0wEXbr1euwRftB/qqr+AL3ACqF0iRKbNyZKSDb6BJkiYo/OW4fwcnGkqtY6mJKu5eXlsD93NskQHG2bnpqHY8+ABWLF/5KetwSpkYurvvhdMEze6mknMEEpIv6Z39gA==","007":"/gMz/BS9kG6ApLt0sEXbqNeuwTvtB/qqr+AH3ACqH0iRRrNybLSDbpm5kiO9fOXMOwcnmoqtZhqJKleWXllhd3NpuQHGs53pqXS8+ABCLF/4yetwSJkYuovvhdBkze6xEnME1pIv6D39gA==","008":"/iMz/Ba9kG6QpLt0oEXbrleuwRvtB/qqr+AN3ACqD0iS5XNyccSDb5lpkij0/OW2WwcmiSqtZSeJKs6WXlmoF3NovIHGw6npqvM8+ABWLF/56etwQJkYupPvhdOkze6hEnME7pIv7n39gA==","009":"/jsz/BDZEG6UNrt00EXbo56uwX7JB/qqr+AFTgCWlQUCinNya52n/Om9AG1hfOXmjU4Cm6OJ4JSJKj56zBLuBTptlIHGO8TNObiY+gBCLF/4m6pQUNEcuiPvhdXgX66SADsEKpIv7ZTZAA==","010":"/nMz/BJZEG6QNrt0kEXboZ6uwU7JB/qqr+AJTgCWlQUEj/Nycs+n/FJ9AGi//OXo5U4BmIOJ6xrJKgLazBIpJTpq2oHGKKDNOq0Y+gB2LF/5G6pQUdEcunvvhdcgX66BADsE7pIv6vTZAA==","011":"/r5j/Bbm0G6lYrt0H7Xbq0uuwR01B/qqr+AKsQCfyFS7DwyNr4ryqJBy/5h/KbDiXrH8TRbcsRY21e5HmUekWsW6p9STuXsyzvrN/wBd1GP7rusQXC8Tup6/1de/oG6D1W8E1W3f7gGMAA==","012":"/sZj/BTm0G6xYrt077XbrUuuwQ01B/qqr+AMsQCfqFS7ScyNoaTyqDkS/5bzqbCEYrH8b7bcr7Q21d6/mUasGsW9jtSTqA8yzDbN/wB11GP6zusQVS8Tuua/1dS/oG6N1W8EtW3f7UGMAA==","013":"/t5j/Bem0G6xYrt0n7XbqsuuwSE1B/qqr+AAsQCfoFS7JsyNqbTyqQDi/5NmKbDwJrH873bcqgc21Wd3mUTOmsW4ptSTwisyzTRN/wBh1GP7LusQVy8Tuta/1dffoG6aVW8EcW3f7OGMAA==","014":"/iMz/Bd9kG6CpLt0kEXbrVeuwRvtB/qqr+AC3ACqb0iWJXNyTe6DbtE5kiwyfOXUtwcnWIqtY7zJKrbOXlsI93NlzgHGm6npq3E8+ABKLF/5yetwSpkYuuvvhdGkze6oEnMEOpIv7H39gA==","015":"/jsz/BQ9kG6CpLt04EXbqteuwTftB/qqr+AO3ACqZ0iWSnNyRf6Db+jJkimn/OWg8wcn2EqtZg/JKg8GXllqd3Ng5gHG8Y3pqnO8+ABeLF/4KetwSJkYutvvhdLEze6/knME/pIv7d39gA==","016":"/kMz/BMZEG6SNrt0EEXbpp6uwW7JB/qqr+AMTgCWlQUGDLNyWZmn/QiNAGcrfOXiXU4DaKOJ+K3JKnbazBFGpTpnzwHGcrDNOvaY+gB2LF/526pQU9EcuiPvhdTgX66VADsEnpIv7NTZAA==","017":"/lsz/BV9kG6WpLt0YEXbq1euwQvtB/qqr+AE3ACqD0iWY7NyQ8CDbnhZkiK+/OWyiwcneiqtfR7JKoY2XloAt3Ni5wHGit3pqb08+ABiLF/4qetwQ5kYupPvhdKkze6mEnMEWpIv7z39gA==","018":"/nsz/Bd9kG6GpLt0cEXbrdeuwSvtB/qqr+AO3ACqH0iVwHNyXrCDb3iJkin3fOXI6wcmaYqtfiPJKh82XlrJ13Nj4oHG+unpqjq8+AB2LF/5ietwS5kYuovvhdFkze62EnMEYpIv6X39gA==","019":"/mMz/BQ9kG6GpLt0AEXbqleuwQftB/qqr+AC3ACqF0iVr3NyVqCDbkF5kixi/OW8rwcm6Uqte5DJKqb+XlirV3NmyoHGkM3pqzg8+ABiLF/4aetwSZkYurvvhdIEze6hknMEppIv6N39gA==","020":"/mMz/BZ9kG6EpLt08EXbr1euwSPtB/qqr+AP3ACqT0iSYrNyeo6DbxhpkicgfOWK7wcnPXqtdRiJKjY2XluHd3NmvIHGg4npqzU8+ABaLF/5qetwQ5kYutvvhdFEze67EnMERpIv6739gA==","021":"/nsz/BU9kG6EpLt0gEXbqNeuwQ/tB/qqr+AD3ACqR0iSDbNycp6DbiGZkiK1/OX+qwcnvbqtcKuJKo/+Xlnl93NjlIHG6a3pqje8+ABOLF/4SetwQZkYuuvvhdIkze6sknMEgpIv6h39gA==","022":"/tZj/BGXEG6l8Lt02uXbo4KuwXVFB/qqr+APdgCjchko4dnY6eXWOiJTOIlsKbCyPa2Oyk/4JKMjgOpTCwpHHdnx6NSSUnNDDa7p/QBMhHf6fKowQjMSuka/1dOOZ263xycESDiP7AiogA==","023":"/s5j/Bam0G6hYrt0/7XbrkuuwQU1B/qqr+ACsQCf6FS9y4yNs7zyqAPS/5z5qbC2vrH+2MbctAV21Rq/mUREWsW0wNST+0syzuVN/wBN1GP7DusQVy8Tuva/1dSfoG6E1W8E2W3f7+GMAA==","024":"/jMz/BZ9kG6SpLt08EXbqdeuwT/tB/qqr+AA3ACqJ0iQyDNyV+aDb9IJkiOt/OWSLwclbzqtfb6JKssGXluCN3NpqAHGosnpqKA8+ABmLF/56etwSpkYusvvhdLkze62knMEkpIv7339gA==","025":"/v5j/Bfm0G6jYrt0f7XbqUuuwSU1B/qqr+AHsQCf6FS/SMyNmOryqVki/5NtKbC8BrH8KObcp7J21W6/mUcr2sW51VSToVsyzr7N/wBN1GP7zusQVS8Tuq6/1ddfoG6Q1W8EqW3f6cGMAA==","026":"/lMz/Bc9kG6GpLt0cEXbqFeuwQPtB/qqr+AK3ACqT0iQ4fNyUdiDbkKZkii0/OWAVwclzVqtZq+JKkI2Xljo93NrqQHG2Znpq268+ABaLF/5aetwQZkYuoPvhdKEze6vEnMENpIv7Z39gA==","027":"/p5j/BLXEG6z8Lt0quXbooKuwUVFB/qqr+AMdgCjEhkqJFnYzJ3WO9HDOIh0KbDeua2MGM/4KbYjgK6rCwgg3dn71FSSGRdDDzlp/QBkhHf73KowSTMSuma/1dNOZ26txycEWDiP6WiogA==","028":"/msz/BZ9kG6WpLt0EEXbqVeuwQ/tB/qqr+AM3ACqV0iTLTNyRLiDbnu5kiZo/OWOcwckXjqtYCGJKmL+XlpDF3NvhIHGw4npqeu8+ABaLF/5qetwS5kYuqvvhdIkze6oknMEypIv6n39gA==","029":"/nMz/BU9kG6WpLt0YEXbrteuwSPtB/qqr+AA3ACqX0iTQjNyTKiDb0JJkiP9fOX6Nwck3vqtZZKJKts2Xlghl3NqrIHGqa3pqOk8+ABOLF/4SetwSZkYupvvhdFEze6/EnMEDpIv6939gA==","030":"/jsz/BKZEG6WNrt0IEXbpp6uwVrJB/qqr+AITgCWzQUFR7NyR7On/bCtAGYj/OXQzU4DT5OJ7hzJKq6yzBHCJTpt4oHGKIDNObWY+gB6LF/5W6pQWtEcukPvhdagX66IgDsEypIv7vTZAA==","031":"/iMz/BT9kG6SpLt0UEXbq1euwT/tB/qqr+AA3ACqV0iVKLNyXeqDbsB5kiO2fOWAGwcnXRqta6/JKl5eXlqEN3NoyoHG0O3pqv48+ABuLF/4KetwSpkYuvPvhdDkze67knMEDpIv7R39gA==","032":"/lsz/BPZEG6CNrt0oEXbpx6uwWbJB/qqr+ACTgCWpQUFbnNyQY2n/CA9AG06/OXCtU4D7fOJ9Q3JKieCzBKo5Tpv44HGU9DNOnsY+gBGLF/526pQUdEcugvvhdbAX66RADsEbpIv7BTZAA==","033":"/kMz/BW9kG6GpLt00EXbqteuwQPtB/qqr+AK3ACqP0iVAXNyW9SDb1DpkiivfOWSYwcn/3qtcL7JKtduXlnu93Nqy4HGq73pqTC8+ABSLF/4qetwQZkYurvvhdCEze6iEnMEqpIv7/39gA==","034":"/r5j/BEXEG6x8Lt0iuXbpwKuwWVFB/qqr+AJdgCjYhktR5nY7cfWO5lDOIf7KbDGNa2M2s/4LBBjgE/zCwpJXdn3o1SSMSNDDTzp/QBshHf63KowSzMSuga/1dKOZ260xycEtDiP7SiogA==","035":"/qZj/BYm0G61Yrt0r7XbqsuuwRU1B/qqr+AEsQCf+FS4bcyNt57yqbjC/5JuqbDCtrH8yEbcvLY21b8fmURKGsWyi1STmBsyzndN/wBt1GP7rusQXi8Tura/1dWfoG6H1W8EJW3f7sGMAA==","036":"/t5j/BQm0G6hYrt0X7XbrMuuwQU1B/qqr+ACsQCfmFS4KwyNubDyqRGi/5ziKbCkirH86ubcohQ21Y/nmUVCWsW1olSTiW8yzLtN/wBF1GP6zusQVy8Tus6/1dafoG6J1W8ERW3f7YGMAA==","037":"/hMz/BW9kG6QpLt00EXbrFeuwR/tB/qqr+AF3ACqV0iXq/NydryDb5qJkiwi/OWKowclrTqteBjJKipeXlnrt3Nl3wHGiv3pqqW8+ABuLF/46etwSJkYuqvvhdMkze6vknMEfpIv6z39gA==","038":"/jMz/BKZEG6ENrt0wEXboJ6uwXbJB/qqr+ALTgCW1QUECDNyeYWn/NN9AGdrfOXUUU4ALNOJ+yXJKvp6zBAGRTpk2oHGaIDNO2sY+gB6LF/5W6pQUtEcujPvhdXAX66bADsERpIv7zTZAA==","039":"/si7/BbFUG6DKrt1iKXbptmuwSsNB/qqr+AbPwC3QXJaT9D8QNK7jZtKHBFwxAY8ZIkfuGJO5jVHEoauvdOj2UuvymJIc2PRRjhf/gBgFH/6ymtQXKEbumBvvdW8Lm6rnEsEunGv71PFAA==","040":"/gMz/Ba9kG6cpLt08EXbr1euwTvtB/qqr+AA3ACqB0iVyXNye6yDbwH5kia/fOW0Qwck6eKtd7uJKkaeXlgv93Nk7IHG2Xnpqe88+ABOLF/56etwRZkYurPvhdIkze6zEnMEcpIv6b39gA==","041":"/hsz/BDZEG6YNrt0gEXbop6uwV7JB/qqr+AITgCWnQUFpnNyYfWn/HEtAGMq/OXklU4A+2uJ8giJKrZyzBNp5TphxIHGIRTNOqSY+gBaLF/4m6pQVdEcugPvhdRgX66AADsEtpIv6lTZAA==","042":"/mMz/Bf9kG6IpLt0cEXbrteuwQftB/qqr+AK3ACqb0iV4LNyfZKDbpFpki2mfOWmOwckS4KtbKqJKs+uXltFN3Nm7YHGoinpqiG8+AByLF/5aetwTpkYuvvvhdJEze6qknME1pIv6139gA==","043":"/nsz/BS9kG6IpLt0AEXbqVeuwSvtB/qqr+AG3ACqZ0iVj7NydYKDb6iZkigz/OXSfwcky0KtaRmJKnZmXlknt3NjxYHGyA3pqyM8+ABmLF/4ietwTJkYusvvhdEkze69EnMEEpIv6v39gA==","044":"/lMz/Ba9kG6KpLt08EXbqdeuwSftB/qqr+AP3ACqb0iXY/NyVsSDb8uZkiIy/OWsgwcmu6Ktfx2JKruuXlgqt3Nr+AHG+Dnpqno8+AByLF/5qetwTJkYuqPvhdGEze6+knMEppIv7X39gA==","045":"/ksz/BX9kG6KpLt0gEXbrleuwQvtB/qqr+AD3ACqZ0iXDPNyXtSDbvJpkienfOXYxwcmO2Kteq6JKgJmXlpIN3Nu0AHGkh3pq3i8+ABmLF/4SetwTpkYupPvhdLkze6pEnMEYpIv7N39gA==","046":"/uZj/BFXEG6r8Lt02uXbpQKuwXFFB/qqr+APdgCjUhkt4JnYxa/WOvGjOIx+qbCUUa2PTJf4LqYjgGfLCwnq3dn8rFSSKcNDDOHp/QBkhHf6fKowTTMSuj6/1dNOZ26yRycEqDiP6siogA==","047":"/isz/BS9kG6epLt0AEXbr9euwTftB/qqr+AJ3ACqD0iXJTNyWOqDb2L5kiy+fOXKvwcmmQKtYb+JKotWXlki93Ns0QHG6U3pqLY8+ABaLF/4yetwRZkYutvvhdKEze6wknMExpIv7j39gA==","048":"/gsz/Ba9kG6OpLt0EEXbqVeuwRftB/qqr+AD3ACqH0iUhvNyRZqDbmIpkif3/OWw3wcniqKtYoKJKhJWXlnrl3Nt1IHGmXnpqzG8+ABOLF/56etwTZkYusPvhdFEze6gknME/pIv6H39gA==","049":"/sZj/Bcm0G6/Yrt0n7XbqcuuwQ01B/qqr+AEsQCf0FS7BgyNipbyqOkC/5c3KbCe9rH+zX7cuI521bfvmUVCesW9qdSTmusyzS9N/wBl1GP7zusQUi8Tuqa/1dT/oG6G1W8ExW3f7sGMAA==","050":"/lsz/Bd9kG6KpLt0IEXbrNeuwQvtB/qqr+AD3ACqF0iS7HNyVNiDb+AZkie8/OXK8wckCUKtbL/JKpc+XltON3NvsoHG4DnpqSa8+ABuLF/5ietwTpkYuqvvhdDkze6kEnME/pIv7r39gA==","051":"/kMz/BQ9kG6KpLt0UEXbq1euwSftB/qqr+AP3ACqH0iSg3NyXMiDbtnpkiIpfOW+twckiYKtaQzJKi72Xlkst3NqmoHGih3pqCQ8+AB6LF/4aetwTJkYupvvhdOEze6zknMEOpIv7x39gA==","052":"/jsz/BY9kG6epLt0oEXbrVeuwTftB/qqr+AJ3ACqf0iSxbNyUuaDbnCJkiyl/OXYiwckqyKtd67JKh4OXlgk93Nts4HGm2npqug8+ABSLF/5CetwRZkYuuPvhdCEze69knMEWpIv7F39gA==","053":"/iMz/BV9kG6epLt00EXbqteuwRvtB/qqr+AF3ACqd0iSqrNyWvaDb0l5kikwfOWszwckK+Ktch3JKqfGXlpGd3Nom4HG8U3pq+q8+ABGLF/46etwR5kYutPvhdPkze6qEnMEnpIv7f39gA==","054":"/gsz/Bd9kG6cpLt0IEXbqleuwRftB/qqr+AM3ACqf0iQRvNyebCDbyp5kiMxfOXSMwcmWwKtZBnJKmoOXltLd3NgpgHGwXnpqrO8+ABSLF/5yetwR5kYurvvhdNEze6pknMEKpIv6n39gA==","055":"/hMz/BQ9kG6cpLt0UEXbrdeuwTvtB/qqr+AA3ACqd0iQKfNycaCDbhOJkiak/OWmdwcm28KtYarJKtPGXlkp93NljgHGq13pq7E8+ABGLF/4KetwRZkYuovvhdAkze6+EnME7pIv6939gA==","056":"/msz/BMZEG6MNrt0oEXboZ6uwWLJB/qqr+ACTgCWhQUAbzNybcen/PPNAGgofOXk2U4CayuJ/wjJKqoazBEFJTpipwHGKGDNOzQY+gBuLF/526pQXtEcunPvhdYAX66UgDsEjpIv6tTZAA==","057":"/qZj/BPXEG698Lt0euXboQKuwW1FB/qqr+AAdgCjShkqqpnY4svWOymzOIjoqbCepa2PLPf4MBFjgA+jCwjpndny2lSSeqdDDSrp/QBQhHf7/KowRDMSuha/1dLuZ26yxycE4DiP7GiogA==","058":"/oZj/BHXEG6t8Lt0auXbp4KuwU1FB/qqr+AKdgCjWhkpCVnY/7vWOiljOIOhKbDkxa2OP1f4MyxjgJajCwgg/dnz39SSCpNDDq1p/QBEhHf63KowTDMSug6/1dEuZ26ixycE2DiP6iiogA==","059":"/ksz/BQ9kG6YpLt0sEXbrVeuwQvtB/qqr+AM3ACqB0iTzPNyYv6Db7o5kiNh/OW6Kwcn6sKtfDXJKno+Xljo13NjooHGyh3pqvq8+AB6LF/4aetwRJkYuuvvhdDkze6gEnMEtpIv7t39gA==","060":"/ksz/BZ9kG6apLt0QEXbqFeuwS/tB/qqr+AB3ACqX0iUATNyTtCDbuMpkigjfOWMawcmPvKtcr2JKur2XlvE93Nj1IHG2Vnpqve8+ABCLF/5qetwTpkYuovvhdOkze66knMEVpIv7b39gA==","061":"/lMz/BU9kG6apLt0MEXbr9euwQPtB/qqr+AN3ACqV0iUbjNyRsCDb9rZki22/OX4LwcmvjKtdw6JKlM+Xlmmd3Nm/IHGs33pq/U8+ABWLF/4SetwTJkYurvvhdDEze6tEnMEkpIv7B39gA==","062":"/isz/BIZEG6KNrt0wEXbo56uwVrJB/qqr+APTgCWpQUEKPNyWqen/TqdAGM6fOW6gU4CDtuJ6ayJKirizBGKpTph1YHGMEDNO3AY+gB+LF/5u6pQV9EcukPvhdbgX66HgDsE8pIv7RTZAA==","063":"/jMz/BFZEG6KNrt0sEXbpB6uwXbJB/qqr+ADTgCWrQUER/NyUren/ANtAGav/OXOxU4CjhuJ7B+JKpMqzBPoJTpk/YHGWmTNOnKY+gBqLF/4W6pQVdEcunPvhdWAX66QADsENpIv7LTZAA==","064":"/hsz/BZ9kG6MpLt0QEXbrteuwTPtB/qqr+AO3ACqN0iWq7NyY7iDbilJkiyu/OWUqwckbLKtehuJKhfGXlvBt3NswAHG+BnpqWK8+AB+LF/56etwR5kYupvvhdAEze63EnMEgpIv6X39gA==","065":"/gMz/BU9kG6MpLt0MEXbqVeuwR/tB/qqr+AC3ACqP0iWxLNya6iDbxC5kik7fOXg7wck7HKtf6iJKq4OXlmjN3Np6AHGkj3pqGA8+ABqLF/4CetwRZkYuqvvhdNkze6gknMERpIv6N39gA==","066":"/nsz/Bc9kG6YpLt0wEXbr1euwQ/tB/qqr+AE3ACqX0iWgnNyZYaDb7nZkie3/OWG0wckztKtYQqJKp72Xlird3NuwQHGg0npqqw8+ABCLF/5aetwTJkYutPvhdBkze6uknMEJpIv6539gA==","067":"/rZj/Bam0G6pYrt0T7Xbr8uuwRU1B/qqr+ADsQCfkFS5AoyNqoryqTLy/5d3KbCo+rH9iQ7cuwZ21TtPmUQCmsW+vFSTgNsyzLLN/wBp1GP7TusQUy8Tura/1dXfoG6I1W8EHW3f7SGMAA==","068":"/kMz/BZ9kG6IpLt0oEXbrleuwQPtB/qqr+AC3ACqR0iVTrNycOaDb4D5kilr/OWI9wclXbKtZ4SJKr4+XloAl3Nq7IHGmVnpqCk8+ABCLF/5qetwRpkYuvvvhdDEze6pEnME2pIv7H39gA==","069":"/o5j/Bfm0G65Yrt0L7XbrsuuwRk1B/qqr+AFsQCfiFS6zkyNv+ryqQvS/5mrKbCm3rH8Gm7cvYh21RuHmUapesW6kdSTmssyzjfN/wBp1GP7jusQWS8Tup6/1dV/oG6PVW8E4W3f6sGMAA==","070":"/hMz/Be9kG6MpLt0kEXbq9euwR/tB/qqr+AC3ACqT0iTJDNyYaSDbgLJkikg/OXy2wcm3lKtabnJKjtWXlilN3NoioHG4Bnpqj48+ABiLF/5yetwRZkYupPvhdFkze6tknME2pIv6r39gA==","071":"/gsz/BT9kG6MpLt04EXbrFeuwTPtB/qqr+AO3ACqR0iTSzNyabSDbzs5kiy1fOWGnwcmXpKtbArJKoKeXlrHt3NtooHGij3pqzy8+AB2LF/4KetwR5kYuqPvhdIEze66EnMEHpIv6x39gA==","072":"/nMz/Bb9kG6YpLt0EEXbqleuwSPtB/qqr+AI3ACqJ0iTDfNyZ5qDb5JZkiI5/OXgowcmfDKtcqjJKrJmXlvP93Nqi4HGm0npqfC8+ABeLF/5SetwTpkYutvvhdEEze60EnMEfpIv6F39gA==","073":"/r5j/Bdm0G6pYrt0n7XbqsuuwTk1B/qqr+APsQCf6FS8jQyNqJbyqRly/5L5KbDOirH/O+7cqKQ21RffmUdmGsW69tSTmNsyz+5N/wB11GP7busQUS8Tur6/1dS/oG6SVW8ERW3f7uGMAA==","074":"/kMz/Be9kG6apLt0kEXbrVeuwQPtB/qqr+AN3ACqJ0iRjrNyTMyDbsipki2tfOXqGwckjBKtYR/JKsZmXligd3NnngHGwVnpqas8+ABeLF/5ietwTJkYuoPvhdLEze6gEnMEDpIv7n39gA==","075":"/lsz/BT9kG6apLt04EXbqteuwS/tB/qqr+AB3ACqL0iR4bNyRNyDb/FZkig4/OWeXwckDNKtZKzJKn+uXlrC93NitgHGq33pqKm8+ABKLF/4aetwTpkYurPvhdGkze63knMEypIv7939gA==","076":"/iMz/Bb9kG6OpLt0EEXbrNeuwT/tB/qqr+AH3ACqT0iRp3NySvKDb1g5kia0fOX4YwckLnKteg7JKk9WXlvKt3NlnwHGugnpqmW8+ABiLF/5CetwR5kYusvvhdKkze65knMEqpIv7J39gA==","077":"/u5j/Bdm0G6/Yrt0n7XbrEuuwSU1B/qqr+AAsQCfgFS+J4yNhf7yqdMS/5Z0qbDWSrH9aa7coAI21ervmUdjWsW14lSTuZsyzHtN/wBJ1GP7LusQWC8Tuq6/1dcfoG6f1W8EkW3f6iGMAA==","078":"/hsz/Be9kG6epLt0cEXbrdeuwTPtB/qqr+AB3ACqV0iSa7NyX5KDb2EZkihofOX2RwclvRKtfIDJKm+eXllhV3NhsoHGoBnpqOC8+ABiLF/5yetwTZkYuuPvhdIEze6+EnMEVpIv6339gA==","079":"/gMz/BT9kG6epLt0AEXbqleuwR/tB/qqr+AN3ACqX0iSBLNyV4KDbljpki39/OWCAwclPdKteTPJKtZWXlsD13NkmoHGyj3pqeI8+AB2LF/4KetwT5kYutPvhdFkze6pknMEkpIv6t39gA==","080":"/sZj/BYm0G65Yrt0T7XbrkuuwSk1B/qqr+AOsQCfuFS7zgyNttLyqTkC/547KbCa2LH8DLbcvZF21eZfmUfNWsW24dSTiR8yzr5N/wBx1GP7TusQUS8Tuoa/1dZ/oG6H1W8E0W3f6QGMAA==","081":"/gsz/Be9kG6IpLt0wEXbrteuwTPtB/qqr+AJ3ACqd0iUTvNyed6Db7Ipki77/OW08QclS2qtZ52JKkPmXltkt3NmnIHGio3pqKC8+ABaLF/5aetwTpkYuuPvhdPEze6hknME6pIv7739gA==","082":"/qZj/Bdm0G6tYrt0z7Xbr8uuwRU1B/qqr+AEsQCf0FS758yNsOzyqKmS/5UiKbCIoLH8rtbcpoB21W9vmUSnmsW04NST8k8yzXDN/wBN1GP7zusQWi8Tus6/1dYfoG6eVW8EdW3f6+GMAA==","083":"/msz/BPZEG6YNrt0QEXbpR6uwUbJB/qqr+AHTgCWjQUEZzNybamn/GudAGXi/OWCG04Be0OJ/IyJKoPyzBEq5TpknYHGY5TNOScY+gBmLF/5e6pQV9EcuivvhdaAX66cgDsETpIv7xTZAA==","084":"/pZj/BYm0G6vYrt0T7XbqMuuwTU1B/qqr+ABsQCf0FS5ZIyNm7ryqfNi/5q2qbCCGLH+XvbctTd21RtvmUfIGsW59VSTqF8yzStN/wBN1GP7DusQWC8Tupa/1dXfoG6KVW8EBW3f7cGMAA==","085":"/lsz/Be9kG6epLt0wEXbqFeuwS/tB/qqr+AG3ACqH0iW5HNyVLaDb3hJkip2fOWsMQcnGSqtbzuJKr7WXlth93NpiAHGq83pqzW8+ABmLF/5KetwR5kYuvPvhdBkze6sEnMEPpIv6339gA==","086":"/nZj/BdWEG6yRrt1z7XboG8uwRFVB/qqr+AbcgCCnMZxTUyNlKBg4HuTeYGvqbCgo73P2ASVjiZ21bbN0GTDXN379FSTEAMCCneE+4Bx1GP5x+uQRTcSul6/1dGPY26a8f0EoW3f7gUeAA==","087":"/jsz/Bb9kG6KpLt0QEXbqdeuwRPtB/qqr+AM3ACqd0iWzbNyUoiDbujZkiFvfOW+SQcnu0qtdCqJKjfmXlgLN3NriQHG0J3pqPs8+ABaLF/5qetwTJkYurvvhdAEze61knMEmpIv6Z39gA==","088":"/hsz/BT9kG6apLt0UEXbr1euwTPtB/qqr+AG3ACqZ0iVbnNyT/iDb+gJkiom/OXEKQcmqOqtdxeJKq7mXljCV3NqjIHGoKnpq3y8+ABOLF/4ietwRJkYuqPvhdPEze6lknMEopIv7939gA==","089":"/gMz/Be9kG6apLt0IEXbqNeuwR/tB/qqr+AK3ACqb0iVAXNyR+iDbtH5ki+zfOWwbQcmKCqtcqSJKhcuXlqg13NvpIHGyo3pqn48+ABaLF/5aetwRpkYupPvhdCkze6yEnMEZpIv7n39gA==","090":"/p5j/Bfm0G6vYrt0n7XbrcuuwRk1B/qqr+ANsQCfqFS86wyNmabyqdji/584qbDkaLH87BbcppU21Tf/mUSsmsW9v9STsF8yznfN/wBR1GP7LusQWi8Tup6/1dS/oG6Q1W8EXW3f7gGMAA==","091":"/lMz/BZ9kG6epLt0EEXbrVeuwQPtB/qqr+AK3ACqZ0iTa/NyVqqDb1PJki/4fOXKQQclq8qtfJnJKpJGXlgFd3NtwoHGs83pqGk8+AB6LF/5CetwRZkYuvvvhdEEze62knMEZpIv6L39gA==","092":"/v5j/Bam0G67Yrt0H7XbrEuuwSU1B/qqr+AHsQCfwFS8wsyNn5jyqEhy/5QhqbD2ELH8TnbcvYQ21b7PmUfGWsW/vtSTyw8yzblN/wBt1GP7rusQUS8Tuta/1dTfoG6JVW8E+W3f7OGMAA==","093":"/jMz/BIZEG6ONrt0kEXbpp6uwXbJB/qqr+AETgCWnQUDQjNyQt2n/Ip9AGThfOX8q04Bm+OJ54jJKlJSzBJLJTpvw4HGWtTNOe6Y+gBGLF/5G6pQXNEcujPvhdRAX66LgDsEwpIv6BTZAA==","094":"/hsz/BU9kG6IpLt0YEXbrFeuwTPtB/qqr+AJ3ACqB0iRrnNyc9KDbqBZki7gfOWmxQcneUqtcYzJKta+Xlpit3Nn/gHG+Knpqv68+ABSLF/4qetwTpkYutvvhdHEze6sknMEdpIv7d39gA==","095":"/tZj/BSm0G65Yrt077XbrMuuwSk1B/qqr+AOsQCfyFS+LoyNvN7yqCty/54gqbCI7LH+Ppbcq4A21XMHmUbLWsW3g1ST+zsyzOBN/wB51GP6jusQUS8Tur6/1dR/oG6K1W8ETW3f62GMAA==","096":"/nsz/BR9kG6cpLt04EXbrdeuwQ/tB/qqr+AD3ACqb0iRh7NydeyDbzDJkiX5fOW0vQcn2yqtap3JKl+OXlkId3Nl/wHGg/npqTA8+ABuLF/4KetwRZkYupPvhdGkze61EnME0pIv7z39gA==","097":"/mMz/BIZEG6YNrt0kEXboB6uwWrJB/qqr+ALTgCW9QUB6LNyb7Wn/EAdAGBs/OXka04DyaOJ7y7JKq9izBJOZTpg1wHGe5TNOnuY+gB6LF/5W6pQVdEcuiPvhdfgX66GADsEFpIv7NTZAA==","098":"/pZj/BOXEG658Lt0KuXboYKuwWlFB/qqr+APdgCjIhko4dnY9dnWO6NDOI5wKbCQM62PHR/4JrljgCoTCwkJPdn0h9SSM0NDDuBp/QBEhHf7vKowRTMSum6/1dOuZ26nxycEhDiP7YiogA==","099":"/lsz/BZ9kG6MpLt08EXbq1euwS/tB/qqr+AJ3ACqf0iSJHNyaJyDbjAZki6w/OXO3QcmyIqtaaDJKsaOXlnBF3Nk+oHG883pqre8+AB6LF/5CetwTZkYuovvhdJkze6lEnME6pIv6X39gA=="};
+
+function oswaldOutline() { return OUT_FONTS['oswald|700'] || null; }
+
+function layoutTrackedRun(text, cx, baseline, fs, tracking) {
+  const chars = Array.from(text);
+  const font = oswaldOutline();
+  const glyphs = [];
+  if (!chars.length) return { total: 0, x0: cx, x1: cx, y0: baseline, y1: baseline, glyphs, baseline };
+  if (font) {
+    const scale = fs / font.unitsPerEm;
+    const advs = chars.map(ch => (font.charToGlyph(ch).advanceWidth || 0) * scale);
+    const total = advs.reduce((a, b) => a + b, 0) + tracking * Math.max(0, chars.length - 1);
+    let x = cx - total / 2;
+    let minx = 1e9, miny = 1e9, maxx = -1e9, maxy = -1e9;
+    for (let i = 0; i < chars.length; i++) {
+      const ch = chars[i], adv = advs[i];
+      const g = { ch, x, adv };
+      if (!/\s/.test(ch)) {
+        const bb = font.charToGlyph(ch).getBoundingBox();
+        g.x0 = x + bb.x1 * scale;
+        g.x1 = x + bb.x2 * scale;
+        g.y0 = baseline - bb.y2 * scale;
+        g.y1 = baseline - bb.y1 * scale;
+        minx = Math.min(minx, g.x0); maxx = Math.max(maxx, g.x1);
+        miny = Math.min(miny, g.y0); maxy = Math.max(maxy, g.y1);
+      }
+      glyphs.push(g);
+      x += adv + tracking;
+    }
+    if (minx === 1e9) { minx = cx - total / 2; maxx = cx + total / 2; miny = baseline; maxy = baseline; }
+    return { total, x0: minx, x1: maxx, y0: miny, y1: maxy, glyphs, baseline };
+  }
+  const ctx = document.createElement('canvas').getContext('2d');
+  ctx.font = `700 ${fs}px "Oswald", sans-serif`;
+  const widths = chars.map(ch => ctx.measureText(ch).width);
+  const total = widths.reduce((a, b) => a + b, 0) + tracking * Math.max(0, chars.length - 1);
+  let x = cx - total / 2;
+  for (let i = 0; i < chars.length; i++) {
+    glyphs.push({ ch: chars[i], x, adv: widths[i] });
+    x += widths[i] + tracking;
+  }
+  return { total, x0: cx - total / 2, x1: cx + total / 2, y0: baseline - fs * 0.8, y1: baseline + fs * 0.16, glyphs, baseline };
+}
+
+function fillTextTracked(ctx, text, cx, y, tracking) {
+  const fsMatch = String(ctx.font).match(/([\d.]+)px/);
+  const fs = fsMatch ? +fsMatch[1] : 10;
+  const run = layoutTrackedRun(text, cx, y, fs, tracking);
+  const prevAlign = ctx.textAlign;
+  const prevBase = ctx.textBaseline;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  for (const g of run.glyphs) ctx.fillText(g.ch, g.x, y);
+  ctx.textAlign = prevAlign;
+  ctx.textBaseline = prevBase;
+  return run.total;
+}
+
+function makeResenasQR() {
+  const url = ($('url').value || '').trim() || SAMPLE;
+  const id = plateIdFromUrl(url);
+  const packed = id && RESENAS_QR_PACKED[id];
+  const expected = id ? `https://tocamaderanfc.github.io/r/?id=${id}` : null;
+  if (packed && expected && url === expected) {
+    const bin = atob(packed);
+    const n = 29;
+    const isDark = (r, c) => {
+      const i = r * n + c;
+      return ((bin.charCodeAt(i >> 3) >> (7 - (i & 7))) & 1) === 1;
+    };
+    return { getModuleCount: () => n, isDark };
+  }
+  return makeQR();
+}
+
+
+function plateIdFromUrl(url) {
+  const m = String(url || '').match(/[?&]id=(\d{1,3})\b/i);
+  return m ? String(parseInt(m[1], 10)).padStart(3, '0') : null;
+}
+function isBlockedPlateId(id) { return id === RESENAS_BLOCKED_ID; }
+function currentUrlBlocked() {
+  return isBlockedPlateId(plateIdFromUrl(($('url').value || '').trim() || SAMPLE));
+}
+function boardGeom() {
+  if ($('preset').value === 'resenas') return { rMm: 8, slotOffsetMm: 18 };
+  return { rMm: 6, slotOffsetMm: 25 };
+}
+
+function strokePhoneMm(ctx, cx, cy, h, sw, col) {
+  const pw = h * 0.54, ph = h, pr = Math.max(0.7, h * 0.12);
+  const x = cx - pw / 2, y = cy - ph / 2;
+  ctx.save();
+  ctx.strokeStyle = col;
+  ctx.fillStyle = 'none';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = sw;
+  rrect(ctx, x, y, pw, ph, pr);
+  ctx.stroke();
+  const inset = h * 0.09;
+  const sx1 = x + inset, sy1 = y + inset * 1.55, sx2 = x + pw - inset, sy2 = y + ph - inset * 1.2;
+  const sr = Math.max(0.35, pr - 0.3);
+  ctx.lineWidth = Math.max(0.35, sw * 0.75);
+  rrect(ctx, sx1, sy1, sx2 - sx1, sy2 - sy1, sr);
+  ctx.stroke();
+  const slitW = pw * 0.32, slitH = Math.max(0.35, h * 0.04);
+  ctx.lineWidth = sw * 0.9;
+  rrect(ctx, cx - slitW / 2, y + inset * 0.5, slitW, slitH, slitH / 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawNfcLetterMarkMm(ctx, L, col) {
+  const { markCx: cx, markCy: cy, fs, markSw: sw, waveRadii, waveSpread: spread, waveGap: gap, tracking } = L.nfc;
+  const probe = layoutTrackedRun('NFC', cx, 0, fs, tracking);
+  const bl = cy - (probe.y0 + probe.y1) / 2;
+  const run = layoutTrackedRun('NFC', cx, bl, fs, tracking);
+  ctx.save();
+  ctx.fillStyle = col;
+  ctx.strokeStyle = col;
+  ctx.font = `700 ${fs}px "Oswald", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  for (const g of run.glyphs) ctx.fillText(g.ch, g.x, bl);
+  const leftOrigin = run.x0 - gap;
+  const rightOrigin = run.x1 + gap;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = sw;
+  ctx.beginPath();
+  for (const rad of waveRadii) {
+    ctx.arc(leftOrigin, cy, rad, Math.PI - spread, Math.PI + spread);
+    ctx.moveTo(rightOrigin + rad * Math.cos(-spread), cy + rad * Math.sin(-spread));
+    ctx.arc(rightOrigin, cy, rad, -spread, spread);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawScanCalloutMm(ctx, L, col) {
+  const S = L.scan;
+  ctx.save();
+  ctx.fillStyle = col;
+  ctx.strokeStyle = col;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `700 ${S.fs}px "Oswald", sans-serif`;
+  const tw = fillTextTracked(ctx, S.text, L.w / 2, S.bl, S.tracking);
+  const yUl = S.bl + (/* approx descent */ 0);
+  // Use measured bottom: after fill, approximate y1 ≈ bl + fs*0.16 (Oswald descent ~0.16em) but we lock to v5:
+  const y1 = 65.054, yUlFixed = y1 + S.ulOff, ay = yUlFixed + S.aGap;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(L.w / 2 - tw / 2 - 0.6, yUlFixed);
+  ctx.lineTo(L.w / 2 + tw / 2 + 0.6, yUlFixed);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(L.w / 2 - S.aw / 2, ay);
+  ctx.lineTo(L.w / 2, ay + S.ah);
+  ctx.lineTo(L.w / 2 + S.aw / 2, ay);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawQrAndFrameMm(ctx, L, col, qr) {
+  const Q = L.qr;
+  const n = qr.getModuleCount();
+  const m = Q.size / n;
+  const x0 = Q.cx - Q.size / 2, y0 = Q.cy - Q.size / 2;
+  ctx.save();
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n;) {
+      if (!qr.isDark(r, c)) { c++; continue; }
+      let e = c; while (e < n && qr.isDark(r, e)) e++;
+      const X = x0 + c * m, X2 = x0 + e * m, Y = y0 + r * m;
+      ctx.moveTo(X, Y); ctx.lineTo(X2, Y); ctx.lineTo(X2, Y + m); ctx.lineTo(X, Y + m); ctx.closePath();
+      c = e;
+    }
+  }
+  ctx.fill();
+  ctx.strokeStyle = col;
+  ctx.lineCap = 'square';
+  ctx.lineWidth = Q.frameSw;
+  const half = Q.frameHalf, len = Q.frameL;
+  const corners = [
+    [Q.cx - half, Q.cy - half, 1, 1],
+    [Q.cx + half, Q.cy - half, -1, 1],
+    [Q.cx - half, Q.cy + half, 1, -1],
+    [Q.cx + half, Q.cy + half, -1, -1]
+  ];
+  ctx.beginPath();
+  for (const [x, y, sx, sy] of corners) {
+    ctx.moveTo(x, y); ctx.lineTo(x + sx * len, y);
+    ctx.moveTo(x, y); ctx.lineTo(x, y + sy * len);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawResenasGenerico(ctx, W, H, wmm, hmm, engCol, filterMode, isExportSVG) {
+  const L = RESENAS_V5;
+  const ppm = W / wmm;
+  const out = [];
+  ctx.save();
+  ctx.scale(ppm, ppm);
+  const col = engCol;
+
+  // NFC: phone + ((NFC)) + caption
+  strokePhoneMm(ctx, L.nfc.phoneCx, L.nfc.phoneCy, L.nfc.phoneH, L.nfc.phoneSw, col);
+  drawNfcLetterMarkMm(ctx, L, col);
+  ctx.save();
+  ctx.fillStyle = col;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `700 ${L.nfc.capFs}px "Oswald", sans-serif`;
+  fillTextTracked(ctx, 'ACERCÁ TU CELULAR', L.w / 2, L.nfc.capBl, L.nfc.capTracking);
+  ctx.restore();
+
+  // Título
+  ctx.save();
+  ctx.fillStyle = col;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `700 ${L.title.fs}px "Oswald", sans-serif`;
+  fillTextTracked(ctx, L.title.text, L.w / 2, L.title.bl, L.title.tracking);
+  ctx.restore();
+
+  // G
+  ctx.save();
+  ctx.translate(L.google.cx, L.google.cy);
+  drawGoogleLogo(ctx, L.google.s, col);
+  ctx.restore();
+
+  // Estrellas escalonadas, alineadas por la base
+  ctx.fillStyle = col;
+  const idx = [-2, -1, 0, 1, 2];
+  for (let i = 0; i < 5; i++) {
+    const R = L.stars.R * L.stars.scales[i];
+    const x = L.stars.cx + idx[i] * L.stars.spacing;
+    const cy = L.stars.base - L.stars.lowerK * R;
+    starPath(ctx, x, cy, R);
+    ctx.fill();
+  }
+
+  // ESCANEÁ EL QR
+  drawScanCalloutMm(ctx, L, col);
+
+  // QR (o aviso si 003 está bloqueado)
+  if (currentUrlBlocked()) {
+    ctx.save();
+    ctx.fillStyle = col;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 3.2px "Oswald", sans-serif';
+    ctx.fillText('PLACA 003 BLOQUEADA', L.qr.cx, L.qr.cy);
+    ctx.restore();
+  } else {
+    drawQrAndFrameMm(ctx, L, col, makeResenasQR());
+  }
+
+  ctx.restore();
+
+  if (filterMode !== 'engrave_only') {
+    drawCutLines(ctx, W, H, wmm);
+  }
+
+  // Items aproximados (para que el arrastre no rompa el resto de la UI)
+  out.push({ id: 'top', labelName: 'Título', w: 68 * ppm, h: 9 * ppm, dcx: W * 0.5, dcy: L.title.bl * ppm, fn: () => {} });
+  out.push({ id: 'qr', labelName: 'Código QR', w: 47 * ppm, h: 47 * ppm, dcx: L.qr.cx * ppm, dcy: L.qr.cy * ppm, fn: () => {} });
+  return out;
+}
+
+function appendResenasCutGcode(g, fx, fy, wmm, hmm, slotW, slotH, slotOff, r, cutPwr, cutSpd, cutPass) {
+  const s1x = slotOff, s2x = wmm - slotOff - slotW;
+  g.push('');
+  g.push('; --- CAPA C02: CORTE CONTORNO TABLA 3MM (r=8, ranuras offset 18) ---');
+  g.push('M3 S0');
+  for (let p = 1; p <= cutPass; p++) {
+    g.push(`; Pasada exterior ${p} de ${cutPass}`);
+    g.push(`G0 X${fx(r)} Y${fy(hmm)}`);
+    g.push(`G1 X${fx(wmm - r)} Y${fy(hmm)} S${cutPwr} F${cutSpd}`);
+    g.push(`G2 X${fx(wmm)} Y${fy(hmm - r)} I${fx(0)} J${fx(-r)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(wmm)} Y${fy(r)} S${cutPwr} F${cutSpd}`);
+    g.push(`G2 X${fx(wmm - r)} Y${fy(0)} I${fx(-r)} J${fx(0)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(s2x + slotW)} Y${fy(0)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(s2x + slotW)} Y${fy(slotH)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(s2x)} Y${fy(slotH)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(s2x)} Y${fy(0)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(s1x + slotW)} Y${fy(0)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(s1x + slotW)} Y${fy(slotH)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(s1x)} Y${fy(slotH)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(s1x)} Y${fy(0)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(r)} Y${fy(0)} S${cutPwr} F${cutSpd}`);
+    g.push(`G2 X${fx(0)} Y${fy(r)} I${fx(0)} J${fx(r)} S${cutPwr} F${cutSpd}`);
+    g.push(`G1 X${fx(0)} Y${fy(hmm - r)} S${cutPwr} F${cutSpd}`);
+    g.push(`G2 X${fx(r)} Y${fy(hmm)} I${fx(r)} J${fx(0)} S${cutPwr} F${cutSpd}`);
+    g.push('G1 S0');
+  }
+  g.push('M5 S0');
+}
+
+
 function drawScene(ctx, W, H, filterMode = 'all', isExportSVG = false) {
   ctx.clearRect(0, 0, W, H);
   const { wmm, hmm } = dims();
@@ -1251,6 +1623,9 @@ function drawScene(ctx, W, H, filterMode = 'all', isExportSVG = false) {
   }
 
   const engCol = filterMode === 'engrave_only' || isExportSVG || vMode === 'lightburn' ? '#000000' : '#261507';
+  if ($('preset').value === 'resenas') {
+    return drawResenasGenerico(ctx, W, H, wmm, hmm, engCol, filterMode, isExportSVG);
+  }
   const pad = W * 0.07;
   const out = [];
   const isGoogleLayout = $('preset').value === 'google';
@@ -1601,9 +1976,13 @@ function generateBoardGCode() {
   if (showBorder || showSlots) {
     const slotW = +$('slotW').value || 2.85;
     const slotH = +$('slotH').value || 10;
-    const slotOff = 25;
+    const geom = boardGeom();
+    const slotOff = geom.slotOffsetMm;
     const s1x = slotOff, s2x = wmm - slotOff - slotW;
 
+    if (showBorder && showSlots && $('preset').value === 'resenas') {
+      appendResenasCutGcode(g, fx, fy, wmm, hmm, slotW, slotH, slotOff, geom.rMm, cutPwr, cutSpd, cutPass);
+    } else {
     g.push(``);
     g.push(`; --- CAPA C02: CORTE CONTORNO TABLA 3MM ---`);
     g.push(`M3 S0`);
@@ -1639,6 +2018,7 @@ function generateBoardGCode() {
       }
     }
     g.push(`M5 S0`);
+    } // fin else (corte rectangular, presets que no son Reseñas)
   }
 
   g.push(``);
@@ -1933,7 +2313,14 @@ function saveBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2500);
 }
 
+function guardBlockedPlate() {
+  if (!currentUrlBlocked()) return true;
+  alert('La placa 003 está bloqueada y nunca se genera. Elegí otro id (001–099).');
+  return false;
+}
+
 $('btnSvgAll').addEventListener('click', async () => {
+  if (!guardBlockedPlate()) return;
   await loadFonts();
   await loadOutlineFonts();
   const { wcm, hcm, wmm, hmm } = dims();
@@ -1945,6 +2332,7 @@ $('btnSvgAll').addEventListener('click', async () => {
 });
 
 $('btnGcodeAll').addEventListener('click', async () => {
+  if (!guardBlockedPlate()) return;
   await loadFonts();
   const prevText = $('btnGcodeAll').textContent;
   $('btnGcodeAll').textContent = '⏳ Generando G-Code...';
@@ -1975,6 +2363,7 @@ $('btnSvgFeet').addEventListener('click', () => {
 });
 
 $('btnPng').addEventListener('click', async () => {
+  if (!guardBlockedPlate()) return;
   await loadFonts();
   const { wcm, hcm } = dims();
   const W = Math.round(wcm / 2.54 * 300), H = Math.round(hcm / 2.54 * 300);
