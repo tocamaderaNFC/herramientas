@@ -81,8 +81,8 @@ button.alt{background:#212630;color:var(--tx);border:1px solid var(--line)}
         <div>
           <div class="layer-title"><span>C00 · GRABADO (Fill)</span><span>M4 Dinámico</span></div>
           <div class="row3" style="margin-top:4px">
-            <div><label style="margin:0">Vel (mm/m)</label><input type="number" id="engSpd" value="4500" step="100" min="100" max="12000"></div>
-            <div><label style="margin:0">Power (%)</label><input type="number" id="engPwr" value="50" step="1" min="1" max="100"></div>
+            <div><label style="margin:0">Vel (mm/m)</label><input type="number" id="engSpd" value="3500" step="100" min="100" max="12000"></div>
+            <div><label style="margin:0">Power (%)</label><input type="number" id="engPwr" value="40" step="1" min="1" max="100"></div>
             <div><label style="margin:0">Interv (mm)</label><input type="number" id="engInt" value="0.10" step="0.02" min="0.05" max="0.50"></div>
           </div>
         </div>
@@ -105,9 +105,9 @@ button.alt{background:#212630;color:var(--tx);border:1px solid var(--line)}
         <div>
           <div class="layer-title"><span>C02 · CORTE 3MM (Cut)</span><span>M3 Constante</span></div>
           <div class="row3" style="margin-top:4px">
-            <div><label style="margin:0">Vel (mm/m)</label><input type="number" id="cutSpd" value="240" step="10" min="50" max="3000"></div>
+            <div><label style="margin:0">Vel (mm/m)</label><input type="number" id="cutSpd" value="500" step="10" min="50" max="3000"></div>
             <div><label style="margin:0">Power (%)</label><input type="number" id="cutPwr" value="100" step="1" min="1" max="100"></div>
-            <div><label style="margin:0">Pasadas</label><input type="number" id="cutPass" value="1" step="1" min="1" max="10"></div>
+            <div><label style="margin:0">Pasadas</label><input type="number" id="cutPass" value="3" step="1" min="1" max="10"></div>
           </div>
         </div>
       </div>
@@ -153,7 +153,7 @@ button.alt{background:#212630;color:var(--tx);border:1px solid var(--line)}
 
     <label for="logoLayerMode" style="margin-top:10px">Acción láser sobre los logos</label>
     <select id="logoLayerMode">
-      <option value="engrave" selected>C00 · Solo Grabar Relleno (4500 / 50%)</option>
+      <option value="engrave" selected>C00 · Solo Grabar Relleno (3500 / 40%)</option>
       <option value="engrave_cut">C00 + C02 · Grabar Relleno + Cortar Silueta</option>
       <option value="cut_all">C02 · Trazar Líneas como Corte (Rojo)</option>
       <option value="score_all">C01 · Trazar Líneas como Marcado Vectorial (Azul)</option>
@@ -282,7 +282,7 @@ button.alt{background:#212630;color:var(--tx);border:1px solid var(--line)}
     <div class="stats">
       <span>Material: <b>Fibra Compensada 3mm</b></span>
       <span>Área: <b id="stArea">130 × 200 mm</b></span>
-      <span>Grabado: <b id="stEng">4500 mm/m @ 50%</b></span>
+      <span>Grabado: <b id="stEng">3500 mm/m @ 40%</b></span>
       <span>Nodos trazados: <b id="stNodes">0</b></span>
       <span>Tiempo est.: <b id="stTime">--</b></span>
     </div>
@@ -1818,11 +1818,11 @@ function drawScanOverlay(ctx, W, H) {
 
 function updateStats() {
   const { wmm, hmm } = dims();
-  const engSpd = +$('engSpd').value || 4500;
-  const engPwr = +$('engPwr').value || 50;
+  const engSpd = +$('engSpd').value || 3500;
+  const engPwr = +$('engPwr').value || 40;
   const engInt = +$('engInt').value || 0.10;
-  const cutSpd = +$('cutSpd').value || 240;
-  const cutPass = +$('cutPass').value || 1;
+  const cutSpd = +$('cutSpd').value || 500;
+  const cutPass = +$('cutPass').value || 3;
 
   $('stArea').textContent = `${wmm} × ${hmm} mm`;
   $('stEng').textContent = `${engSpd} mm/m @ ${engPwr}%`;
@@ -1840,15 +1840,15 @@ function updateStats() {
 /* ---------- Generador de G-Code GRBL 1.1 ---------- */
 function generateBoardGCode() {
   const { wmm, hmm } = dims();
-  const engSpd = +$('engSpd').value || 4500;
-  const engPwr = Math.round((+$('engPwr').value || 50) * 10);
+  const engSpd = +$('engSpd').value || 3500;
+  const engPwr = Math.round((+$('engPwr').value || 40) * 10);
   const engInt = Math.max(0.05, +$('engInt').value || 0.10);
   const lineSpd = +$('lineSpd').value || 2200;
   const linePwr = Math.round((+$('linePwr').value || 60) * 10);
   const linePass = +$('linePass').value || 1;
-  const cutSpd = +$('cutSpd').value || 240;
+  const cutSpd = +$('cutSpd').value || 500;
   const cutPwr = Math.round((+$('cutPwr').value || 100) * 10);
-  const cutPass = +$('cutPass').value || 1;
+  const cutPass = +$('cutPass').value || 3;
   const overscan = +$('overscan').value || 2.5;
   const orig = $('originMode').value;
 
@@ -2032,9 +2032,9 @@ function generateBoardGCode() {
 function generateFeetGCode() {
   const sw = +$('slotW').value || 2.85;
   const sh = +$('slotH').value || 10;
-  const cutSpd = +$('cutSpd').value || 240;
+  const cutSpd = +$('cutSpd').value || 500;
   const cutPwr = Math.round((+$('cutPwr').value || 100) * 10);
-  const cutPass = +$('cutPass').value || 1;
+  const cutPass = +$('cutPass').value || 3;
   const fw = 50, fh = 20;
 
   const g = [
