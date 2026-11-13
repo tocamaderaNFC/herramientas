@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d1d1f">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Cobros · Tocá Madera NFC</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f7;color:#1d1d1f;font-size:15px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+header{background:#1d1d1f;color:#fff;padding:max(12px,env(safe-area-inset-top)) 14px 0;position:sticky;top:0;z-index:5}
+header h1{font-size:17px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+nav{display:flex;margin-top:10px}
+nav button{flex:1;background:none;border:0;color:#aaa;font:inherit;font-weight:600;padding:10px 0;border-bottom:3px solid transparent}
+nav button.on{color:#fff;border-color:#fff}
+main{padding:14px;max-width:560px;margin:0 auto}
+section[hidden],[hidden]{display:none!important}
+.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+h2{font-size:15px;margin-bottom:10px}
+label{display:block;font-size:13px;font-weight:600;color:#555;margin:10px 0 4px}
+input,select{width:100%;font:inherit;padding:10px;border:1px solid #ccc;border-radius:10px;background:#fff}
+input[type=range]{padding:0}
+.btn{display:block;width:100%;font:inherit;font-weight:700;border:0;border-radius:12px;padding:13px;background:#1d1d1f;color:#fff;margin-top:12px}
+.btn.alt{background:#e5e5ea;color:#1d1d1f}
+.btn.red{background:#d70015}
+.sm{font:inherit;font-size:13px;border:1px solid #ccc;background:#fff;border-radius:999px;padding:6px 10px;margin:3px 2px}
+.muted{color:#777;font-size:13px}
+.warn{background:#fff4e5;color:#8a4b00;border-radius:10px;padding:8px 10px;font-size:13px;margin-top:8px}
+.err{background:#ffe5e7;color:#a00012}
+.ok{background:#e6f7ec;color:#0b6b2f}
+.row{display:flex;align-items:center;gap:8px;padding:9px 4px;border-bottom:1px solid #eee}
+.row:last-child{border:0}
+.num{font-family:ui-monospace,monospace;font-weight:700;width:38px}
+.dest{flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px}
+.free .dest{color:#0b6b2f;font-weight:600}
+.lock .num::after{content:" 🔒"}
+.tag{font-size:11px;border-radius:6px;padding:2px 6px;background:#eee;white-space:nowrap}
+.res{background:#e8f0fe}.col{background:#e6f7ec}.bsas{background:#fdecef}
+.meth{border:1px solid #e5e5ea;border-radius:12px;padding:10px;margin-top:10px;background:#fafafa}
+.meth img{max-height:30px;max-width:80px}
+.f2{display:flex;gap:6px;margin-top:6px}.f2 input{padding:8px}
+.f2 input:first-child{width:44%;flex:none}
+#pvwrap{height:560px;overflow:hidden;border-radius:12px;background:#ddd;position:relative}
+#frame{width:390px;height:844px;border:0;background:#fff;transform-origin:0 0;position:absolute;top:0;left:0}
+dialog{border:0;border-radius:16px;padding:16px;width:min(94vw,520px);margin:auto}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+td{padding:6px 4px;border-top:1px solid #eee;vertical-align:top;overflow-wrap:anywhere}
+.del{background:#ffe5e7;text-decoration:line-through}.add{background:#e6f7ec}
+#msg{position:fixed;left:12px;right:12px;bottom:16px;z-index:20}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cobros · Tocá Madera <button id="undo" class="sm" hidden>↩ Deshacer último cambio</button></h1>
+  <nav><button data-t="placas" class="on">Placas</button><button data-t="pagina">Página de pago</button><button data-t="ajustes">Ajustes</button></nav>
+</header>
+<main>
+<section id="placas">
+  <div class="card">
+    <h2>Asignar o cambiar una placa</h2>
+    <label>Número (001–099 reseñas · 101–199 Colonia · 201–299 Bs As)</label>
+    <input id="aNum" inputmode="numeric" maxlength="3" placeholder="ej. 102">
+    <label>Destino (URL, o placeId de Google para reseñas; vacío = liberar)</label>
+    <input id="aUrl" placeholder="https://tocamaderanfc.github.io/colonia/cliente.html">
+    <div id="aHint" class="muted" style="margin-top:6px"></div>
+    <button class="btn" id="aGo">Revisar cambio</button>
+  </div>
+  <div class="card">
+    <h2>Placas <span class="muted" id="lStat"></span></h2>
+    <button class="sm" id="reload">↻ Actualizar</button>
+    <div id="lList" class="muted">Cargando…</div>
+  </div>
+</section>
+
+<section id="pagina" hidden>
+  <div class="card">
+    <h2>Página de medios de pago</h2>
+    <label>Ciudad / repo</label>
+    <select id="pRepo"><option value="colonia">Colonia (placas 101–199)</option><option value="buenos-aires">Buenos Aires (placas 201–299)</option></select>
+    <label>Editar una existente (opcional)</label>
+    <select id="pLoad"><option value="">— página nueva —</option></select>
+    <label>…o cargar un HTML exportado del generador</label>
+    <input id="pImport" type="file" accept=".html,text/html">
+    <label>Nombre del archivo (cliente)</label>
+    <input id="pFile" placeholder="ej. lasverdaderas" autocapitalize="off">
+    <div class="muted" id="pUrl"></div>
+    <label>Titular (nombre y apellido)</label>
+    <input id="inName" style="text-transform:uppercase">
+    <label>Logo del negocio</label>
+    <div><img id="bizPrev" style="max-height:48px" hidden> <input id="inBiz" type="file" accept="image/*"> <button class="sm" id="bizDel" hidden>Quitar logo</button></div>
+    <label>Agregar medio de pago</label>
+    <div id="presets"></div>
+    <div id="mList"></div>
+    <label>Asignar a la placa (opcional)</label>
+    <select id="pNum"></select>
+  </div>
+  <div class="card"><h2>Vista previa (así la ve el cliente)</h2><div id="pvwrap"><iframe id="frame" title="vista previa"></iframe></div></div>
+  <button class="btn" id="pGo">Revisar y subir</button>
+</section>
+
+<section id="ajustes" hidden>
+  <div class="card">
+    <h2>Token de GitHub</h2>
+    <p class="warn">⚠️ El token queda guardado solo en este teléfono: si lo pierden o lo prestás, alguien puede cambiar tus placas. Borralo si dejás de usarlo.</p>
+    <label>Token fine-grained (contents read/write en r, colonia y buenos-aires)</label>
+    <input id="tok" type="password" autocomplete="off" placeholder="github_pat_…">
+    <p class="muted" style="margin-top:6px"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Crear token en GitHub</a> (ver README)</p>
+    <button class="btn" id="tokSave">Guardar en este teléfono</button>
+    <button class="btn red" id="tokDel">Borrar token</button>
+    <p class="muted" id="tokStat" style="margin-top:8px"></p>
+  </div>
+  <div class="card"><h2>Bloqueadas</h2><p class="muted">003 (pagos The Crown Barber) no se puede tocar desde acá, ni su página.</p></div>
+</section>
+</main>
+
+<dialog id="dlg">
+  <h2 id="dTitle"></h2>
+  <div id="dBody"></div>
+  <div id="dType" hidden><label>Esta placa ya está activa. Escribí el número para confirmar</label><input id="dTypeIn" inputmode="numeric"></div>
+  <button class="btn" id="dOk">Confirmar y subir</button>
+  <button class="btn alt" id="dNo">Cancelar</button>
+</dialog>
+<div id="msg"></div>
+
+<script src="generador.js"></script>
+<script>
+const OWNER='tocamaderanfc', BRANCH='main', PAGES='https://tocamaderanfc.github.io';
+const API=localStorage['cobros.api']||'https://api.github.com';
+const LOCKED=['003'];
+const RANGES=[{a:1,b:99,t:'Reseñas',c:'res'},{a:101,b:199,t:'Pagos Colonia',c:'col',repo:'colonia'},{a:201,b:299,t:'Pagos Bs As',c:'bsas',repo:'buenos-aires'}];
+const $=id=>document.getElementById(id);
+const range=n=>RANGES.find(r=>+n>=r.a&&+n<=r.b);
+const pad=n=>String(n).padStart(3,'0');
+let links=JSON.parse(localStorage['cobros.links']||'null'), custom={};
+let state={name:'',bizLogo:'',methods:[]}, uid=1;
+
+function say(t,cls='ok'){ const e=$('msg'); e.innerHTML=''; const d=document.createElement('div'); d.className='warn '+cls; d.textContent=t; e.appendChild(d); clearTimeout(say.t); say.t=setTimeout(()=>e.innerHTML='',cls==='ok'?6000:12000); d.onclick=()=>e.innerHTML=''; }
+
+// ---------- GitHub contents API ----------
+const b64e=t=>{ const b=new TextEncoder().encode(t); let s=''; for(let i=0;i<b.length;i+=0x8000) s+=String.fromCharCode(...b.subarray(i,i+0x8000)); return btoa(s); };
+const b64d=s=>new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\s/g,'')),c=>c.charCodeAt(0)));
+// Mensajes tomados de la versión de Grok (src/lib/github.ts).
+function ghErr(st,raw){
+  if(st===401) return 'El token no sirve o está vencido.';
+  if(st===403&&/rate limit/i.test(raw)) return 'GitHub limitó las consultas. Esperá un minuto y reintentá.';
+  if(st===403) return 'Sin permiso para escribir. En el token activá Contents: Read and write para r, colonia y buenos-aires.';
+  if(st===404) return 'No encontré ese repo o archivo (o el token no lo puede ver).';
+  if(st===409||st===422) return 'El archivo cambió en el repo mientras lo subías. Tocá ↻ Actualizar y revisá de nuevo.';
+  if(st>=500) return 'GitHub está con problemas. Reintentá en un rato.';
+  return 'GitHub respondió '+st+(raw?': '+raw:'');
+}
+async function gh(method,url,body){
+  const h={Accept:'application/vnd.github+json'}, tok=localStorage['cobros.token'];
+  if(tok) h.Authorization='Bearer '+tok;
+  let r; try{ r=await fetch(API+'/repos/'+OWNER+'/'+url,{method,headers:h,body:body&&JSON.stringify(body),cache:'no-store'}); }
+  catch(e){ throw new Error('No hubo conexión con GitHub. Revisá la red.'); }
+  if(r.status===404&&method==='GET') return null;
+  if(!r.ok) throw new Error(ghErr(r.status,(await r.json().catch(()=>({}))).message||''));
+  return r.json();
+}
+const cpath=(repo,path)=>repo+'/contents/'+path.split('/').map(encodeURIComponent).join('/');
+async function getFile(repo,path){ const j=await gh('GET',cpath(repo,path)+'?ref='+BRANCH); return j&&{sha:j.sha,text:b64d(j.content)}; }
+async function getBlob(repo,sha){ return b64d((await gh('GET',repo+'/git/blobs/'+sha)).content); }
+async function put(repo,path,text,sha,message){ const j=await gh('PUT',cpath(repo,path),{message,content:b64e(text),branch:BRANCH,...(sha&&{sha})}); return j.content.sha; }
+async function del(repo,path,sha,message){ await gh('DELETE',cpath(repo,path),{message,sha,branch:BRANCH}); }
+
+// ---------- links.json (mismo formato que el repo: 2 espacios, claves ordenadas, sin \n final) ----------
+const linksText=o=>'{\n'+Object.keys(o).sort().map(k=>'  '+JSON.stringify(k)+': '+JSON.stringify(o[k])).join(',\n')+'\n}';
+function lockedPages(){ return LOCKED.map(n=>links&&links[n]).filter(Boolean); }
+
+async function loadLinks(){
+  try{
+    const f=await getFile('r','links.json'); links=JSON.parse(f.text); localStorage['cobros.links']=JSON.stringify(links);
+    $('lStat').textContent='';
+  }catch(e){ $('lStat').textContent=links?'(sin conexión: copia guardada)':'(no se pudo leer)'; }
+  try{ const d=await getFile('herramientas','datos.json'); custom=(d&&JSON.parse(d.text).custom_urls)||{}; }catch(e){}
+  renderLinks(); renderNumSel();
+}
+function renderLinks(){
+  const box=$('lList'); box.innerHTML=''; if(!links) return;
+  let free=0;
+  Object.keys(links).sort().forEach(k=>{
+    const r=range(k), v=links[k], d=document.createElement('div');
+    d.className='row'+(v?'':' free')+(LOCKED.includes(k)?' lock':''); if(!v) free++;
+    d.innerHTML='<span class="num"></span><span class="tag '+(r?r.c:'')+'"></span><span class="dest"></span>';
+    d.children[0].textContent=k; d.children[1].textContent=r?r.t:'fuera de rango';
+    d.children[2].textContent=v?v.replace(/^https:\/\//,''):'libre';
+    if(!LOCKED.includes(k)) d.onclick=()=>{ $('aNum').value=k; $('aUrl').value=v; hint(); scrollTo(0,0); };
+    box.appendChild(d);
+  });
+  $('lStat').textContent+=' '+free+' libres';
+}
+function renderNumSel(){
+  const r=RANGES.find(x=>x.repo===$('pRepo').value), s=$('pNum'), keep=s.value; s.innerHTML='<option value="">— no asignar —</option>';
+  if(!links) return;
+  for(let n=r.a;n<=r.b;n++){ const k=pad(n); if(k in links&&!links[k]) s.add(new Option(k+' (libre)',k)); }
+  const next=pad(Math.max(r.a-1,...Object.keys(links).filter(k=>range(k)===r).map(Number))+1);
+  if(+next<=r.b&&!(next in links)) s.add(new Option(next+' (nuevo)',next));
+  s.value=keep;
+}
+// Normaliza y valida un cambio de placa. Devuelve {num,url,warn} o tira error.
+function checkAssign(num,url){
+  num=num.trim(); if(!/^\d{1,3}$/.test(num)) throw new Error('Número inválido');
+  num=pad(num);
+  if(LOCKED.includes(num)) throw new Error('La placa '+num+' está bloqueada para siempre. No se toca.');
+  const r=range(num); if(!r) throw new Error('El '+num+' está fuera de los rangos (001–099, 101–199, 201–299).');
+  url=url.trim(); let warn='';
+  if(/^ChIJ[\w-]+$/.test(url)) url=custom[url]||'https://search.google.com/local/writereview?placeid='+url;
+  if(url&&!/^https:\/\/\S+$/.test(url)) throw new Error('El destino tiene que empezar con https://');
+  if(url&&r.repo&&!url.startsWith(PAGES+'/'+r.repo+'/')) warn='Ojo: el '+num+' es de '+r.t+' y el link no es de '+PAGES+'/'+r.repo+'/';
+  if(url&&!r.repo&&!url.includes('search.google.com/local/writereview')) warn='Ojo: el '+num+' es de reseñas y el link no es de Google.';
+  return {num,url,warn};
+}
+function hint(){ try{ const c=checkAssign($('aNum').value,$('aUrl').value); $('aHint').textContent=c.warn||(c.url?'→ '+c.url:'Se va a liberar la placa'); }catch(e){ $('aHint').textContent=$('aNum').value?e.message:''; } }
+function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes()); }
+
+// Arma las escrituras de links.json (respaldo + cambio) leyendo la versión actual del repo.
+async function linksPlan(num,url,what){
+  const cur=await getFile('r','links.json'), old=JSON.parse(cur.text);
+  if(old[num]===undefined&&!url) throw new Error('El '+num+' no existe y no hay nada que liberar.');
+  if((old[num]||'')===url) throw new Error('La placa '+num+' ya apunta ahí. No hay cambios.');
+  const next={...old,[num]:url};
+  if(LOCKED.some(k=>next[k]!==old[k])) throw new Error('Cambio bloqueado (003).');
+  const base='backups/links-'+stamp(); let bk=base+'.json';
+  for(let i=2;await getFile('r',bk);i++) bk=base+'-'+i+'.json';
+  const desc=url?(what||(url.includes('writereview')?'reseñas':'link')):'liberada';
+  return {num,old:old[num],url,occupied:!!old[num],writes:[
+    {repo:'r',path:bk,text:cur.text,prevSha:null,msg:'respaldo links.json antes de '+num,backup:true},
+    {repo:'r',path:'links.json',text:linksText(next),prevSha:cur.sha,msg:num+': '+desc+' (respaldo '+bk+')'}]};
+}
+function linksDiffHtml(p){
+  const e=s=>esc(s||'(vacío)');
+  return '<table><tr><td class="num">'+p.num+'</td><td class="del">'+e(p.old)+'</td></tr><tr><td></td><td class="add">'+e(p.url)+'</td></tr></table>'+
+    '<p class="muted" style="margin-top:8px">Respaldo: r/'+esc(p.writes[0].path)+'</p>';
+}
+
+// ---------- Confirmación + ejecución + deshacer ----------
+function confirmDlg(title,html,typeNum){
+  return new Promise(res=>{
+    $('dTitle').textContent=title; $('dBody').innerHTML=html; $('dType').hidden=!typeNum; $('dTypeIn').value='';
+    $('dOk').onclick=()=>{ if(typeNum&&$('dTypeIn').value.trim()!==typeNum){ say('Escribí '+typeNum+' para confirmar','err'); return; } $('dlg').close(); res(true); };
+    $('dNo').onclick=()=>{ $('dlg').close(); res(false); };
+    $('dlg').showModal();
+  });
+}
+const undoStack=()=>JSON.parse(localStorage['cobros.undo']||'[]');
+function renderUndo(){ const u=undoStack(); $('undo').hidden=!u.length; $('undo').title=u.length?u[u.length-1].desc:''; }
+async function run(desc,writes){
+  const done=[];
+  try{
+    for(const w of writes){ const sha=await put(w.repo,w.path,w.text,w.prevSha,w.msg); if(!w.backup) done.push({repo:w.repo,path:w.path,prevSha:w.prevSha,newSha:sha}); }
+  }finally{
+    if(done.length){ const u=undoStack(); u.push({desc,writes:done}); localStorage['cobros.undo']=JSON.stringify(u.slice(-10)); renderUndo(); }
+  }
+}
+$('undo').onclick=async()=>{
+  const u=undoStack(), last=u[u.length-1]; if(!last) return;
+  try{
+    for(const w of last.writes){ const c=await getFile(w.repo,w.path); if(!c||c.sha!==w.newSha) throw new Error(w.repo+'/'+w.path+' cambió después. Restauralo desde backups/ o con editor github.'); w.curSha=c.sha; }
+    const list=last.writes.map(w=>'<li>'+esc(w.repo+'/'+w.path)+(w.prevSha?' → versión anterior':' → se borra (era nuevo)')+'</li>').join('');
+    if(!await confirmDlg('Deshacer: '+last.desc,'<ul style="margin-left:18px">'+list+'</ul>')) return;
+    for(const w of [...last.writes].reverse()){
+      if(w.prevSha) await put(w.repo,w.path,await getBlob(w.repo,w.prevSha),w.curSha,'deshacer: '+last.desc);
+      else await del(w.repo,w.path,w.curSha,'deshacer: '+last.desc);
+    }
+    u.pop(); localStorage['cobros.undo']=JSON.stringify(u); renderUndo(); say('Listo, se deshizo: '+last.desc); loadLinks();
+  }catch(e){ say(e.message,'err'); }
+};
+
+$('aGo').onclick=async()=>{
+  try{
+    if(!localStorage['cobros.token']) throw new Error('Primero cargá el token en Ajustes.');
+    const c=checkAssign($('aNum').value,$('aUrl').value), p=await linksPlan(c.num,c.url);
+    if(!await confirmDlg('Cambiar placa '+c.num,linksDiffHtml(p)+(c.warn?'<p class="warn">'+esc(c.warn)+'</p>':''),p.occupied?c.num:'')) return;
+    await run('placa '+c.num,p.writes); say('Placa '+c.num+' actualizada. GitHub Pages tarda ~1 min.'); $('aUrl').value=''; loadLinks();
+  }catch(e){ say(e.message,'err'); }
+};
+
+// ---------- Página de pago (mismos campos que GENERADOR_PAGOS) ----------
+const slug=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function addMethod(key){
+  const p=PRESETS.find(x=>x.key===key);
+  state.methods.push({id:uid++,key,label:p.label,fields:p.kinds.map(k=>({kind:k,value:''})),hue:p.hue,logo:LOGOS[key]||''});
+  renderList(); preview();
+}
+function renderList(){
+  const box=$('mList'); box.innerHTML='';
+  state.methods.forEach((m,i)=>{
+    const d=document.createElement('div'); d.className='meth';
+    d.innerHTML='<div class="f2"><span>'+(m.logo?'<img src="'+m.logo+'" alt="">':'')+'</span><input data-f="label" value="'+esc(m.label)+'" placeholder="Nombre del medio"></div>'+
+      m.fields.map((f,j)=>'<div class="f2"><input data-fk="'+j+'" value="'+esc(f.kind)+'" placeholder="Tipo"><input data-fv="'+j+'" value="'+esc(f.value)+'" placeholder="Número / alias / clave" style="font-family:monospace">'+(m.fields.length>1?'<button class="sm" data-fd="'+j+'">×</button>':'')+'</div>').join('')+
+      '<button class="sm" data-add>+ Otro dato</button><div class="f2"><input data-f="hue" type="range" min="0" max="360" value="'+m.hue+'"><span style="width:22px;height:22px;border-radius:50%;flex:none;background:hsl('+m.hue+',86%,50%)"></span></div>'+
+      '<div><label class="sm" style="display:inline-block;margin:3px 2px">Cambiar logo<input type="file" accept="image/*" data-f="logo" hidden></label><button class="sm" data-a="up"'+(i?'':' disabled')+'>↑</button><button class="sm" data-a="down"'+(i<state.methods.length-1?'':' disabled')+'>↓</button><button class="sm" data-a="del" style="color:#d70015">Eliminar</button></div>';
+    d.querySelectorAll('[data-f]').forEach(el=>{ const f=el.dataset.f;
+      if(f==='logo') el.onchange=e=>{ const file=e.target.files[0]; if(file) loadLogo(file,300,url=>{ m.logo=url; renderList(); preview(); }); };
+      else el.oninput=e=>{ m[f]=f==='hue'?parseInt(e.target.value,10):e.target.value; if(f==='hue') el.nextElementSibling.style.background='hsl('+m.hue+',86%,50%)'; preview(); };
+    });
+    d.querySelectorAll('[data-fk]').forEach(el=>el.oninput=e=>{ m.fields[+el.dataset.fk].kind=e.target.value; preview(); });
+    d.querySelectorAll('[data-fv]').forEach(el=>el.oninput=e=>{ m.fields[+el.dataset.fv].value=e.target.value; preview(); });
+    d.querySelectorAll('[data-fd]').forEach(el=>el.onclick=()=>{ m.fields.splice(+el.dataset.fd,1); renderList(); preview(); });
+    d.querySelector('[data-add]').onclick=()=>{ m.fields.push({kind:'Alias',value:''}); renderList(); preview(); };
+    d.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ const a=b.dataset.a;
+      if(a==='del') state.methods.splice(i,1); else { const j=a==='up'?i-1:i+1; [state.methods[i],state.methods[j]]=[state.methods[j],state.methods[i]]; }
+      renderList(); preview(); });
+    box.appendChild(d);
+  });
+}
+function renderBiz(){ $('bizPrev').src=state.bizLogo||''; $('bizPrev').hidden=!state.bizLogo; $('bizDel').hidden=!state.bizLogo; }
+function preview(){ clearTimeout(preview.t); preview.t=setTimeout(()=>{ $('frame').srcdoc=buildClient(); fit(); },150); }
+function fit(){ const w=$('pvwrap').clientWidth, k=Math.min(1,w/390); $('frame').style.transform='scale('+k+')'; $('frame').style.left=Math.max(0,(w-390*k)/2)+'px'; $('pvwrap').style.height=Math.round(844*k*0.75)+'px'; }
+function pageUrl(){ return PAGES+'/'+$('pRepo').value+'/'+slug($('pFile').value)+'.html'; }
+function showUrl(){ $('pUrl').textContent=$('pFile').value?pageUrl():''; }
+// Lee D de una página ya generada para editarla.
+function parsePage(html){ const m=html.match(/const D = (\{.*?\});\n/s); if(!m) throw new Error('Esta página no la hizo el generador, no se puede editar acá.'); return JSON.parse(m[1]); }
+async function listPages(){
+  const s=$('pLoad'); s.innerHTML='<option value="">— página nueva —</option>';
+  try{ (await gh('GET',$('pRepo').value+'/contents/?ref='+BRANCH)||[]).filter(f=>f.name.endsWith('.html')).forEach(f=>s.add(new Option(f.name,f.name))); }catch(e){}
+}
+$('pLoad').onchange=async()=>{
+  const n=$('pLoad').value; if(!n){ state={name:'',bizLogo:'',methods:[]}; $('pFile').value=''; }
+  else try{
+    const D=parsePage((await getFile($('pRepo').value,n)).text);
+    $('pFile').value=n.replace(/\.html$/,''); fillFrom(D);
+  }catch(e){ say(e.message,'err'); $('pLoad').value=''; }
+  if(!n){ $('inName').value=''; renderBiz(); renderList(); preview(); showUrl(); }
+};
+function fillFrom(D){ state={name:D.name,bizLogo:D.bizLogo,methods:D.methods.map(m=>({...m}))}; uid=Math.max(0,...state.methods.map(m=>m.id))+1; $('inName').value=state.name; renderBiz(); renderList(); preview(); showUrl(); }
+$('pImport').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; e.target.value='';
+  try{ fillFrom(parsePage(await f.text())); $('pLoad').value=''; say('Cargado desde '+f.name+'. Poné el nombre del cliente.'); }catch(err){ say(err.message,'err'); } };
+$('pRepo').onchange=()=>{ listPages(); renderNumSel(); showUrl(); };
+$('pFile').oninput=showUrl;
+$('inName').oninput=e=>{ state.name=e.target.value.toUpperCase(); preview(); };
+$('inBiz').onchange=e=>{ const f=e.target.files[0]; if(!f) return; loadLogo(f,480,url=>{ state.bizLogo=url; renderBiz(); preview(); }); e.target.value=''; };
+$('bizDel').onclick=()=>{ state.bizLogo=''; renderBiz(); preview(); };
+PRESETS.forEach(p=>{ const b=document.createElement('button'); b.className='sm'; b.textContent='+ '+p.label; b.onclick=()=>addMethod(p.key); $('presets').appendChild(b); });
+
+$('pGo').onclick=async()=>{
+  try{
+    if(!localStorage['cobros.token']) throw new Error('Primero cargá el token en Ajustes.');
+    const repo=$('pRepo').value, file=slug($('pFile').value);
+    if(!file) throw new Error('Poné el nombre del archivo (cliente).');
+    if(!state.name.trim()) throw new Error('Falta el titular.');
+    if(!state.methods.length||state.methods.some(m=>m.fields.some(f=>!f.value.trim()))) throw new Error('Falta cargar algún dato de pago.');
+    const path=file+'.html', url=pageUrl();
+    if(lockedPages().includes(url)) throw new Error('Esa página es de una placa bloqueada (003). No se toca.');
+    const cur=await getFile(repo,path), html=buildClient();
+    if(html.length>900000) throw new Error('La página pesa más de 900 KB: achicá el logo.');
+    if(cur&&cur.text===html) throw new Error('La página ya está igual en el repo.');
+    const titleCase=state.name.trim().toLowerCase().replace(/(^|\s)\S/g,c=>c.toUpperCase());
+    const writes=[{repo,path,text:html,prevSha:cur&&cur.sha,msg:file+': medios de pago '+titleCase}];
+    let body='<p><b>'+(cur?'Reemplaza':'Archivo nuevo')+':</b> '+esc(repo+'/'+path)+' ('+Math.round(html.length/1024)+' KB)</p><p class="muted">'+esc(url)+'</p>';
+    if(cur){ try{ const old=parsePage(cur.text); body+='<table>'+[['Titular',old.name,state.name],['Medios',old.methods.map(m=>m.label+': '+m.fields.map(f=>f.value).join(' / ')).join(' · '),state.methods.map(m=>m.label+': '+m.fields.map(f=>f.value).join(' / ')).join(' · ')]].map(r=>'<tr><td>'+r[0]+'</td><td class="del">'+esc(r[1])+'</td></tr><tr><td></td><td class="add">'+esc(r[2])+'</td></tr>').join('')+'</table>'; }catch(e){ body+='<p class="warn">La página actual no es del generador; se reemplaza entera.</p>'; } }
+    else body+='<p>'+esc(state.name)+' — '+esc(state.methods.map(m=>m.label+': '+m.fields.map(f=>f.value).join(' / ')).join(' · '))+'</p>';
+    let occ='', num=$('pNum').value;
+    if(num){ const c=checkAssign(num,url), p=await linksPlan(c.num,c.url,'pagos '+file); writes.push(...p.writes); body+='<h2 style="margin-top:12px">Placa</h2>'+linksDiffHtml(p); if(p.occupied) occ=c.num; }
+    if(!await confirmDlg('Subir página'+(num?' y asignar '+num:''),body,occ)) return;
+    await run(path+(num?' + placa '+num:''),writes); say('Subido. GitHub Pages tarda ~1 min: '+url); loadLinks(); listPages();
+  }catch(e){ say(e.message,'err'); }
+};
+
+// ---------- Ajustes / navegación ----------
+function tokStat(){ $('tokStat').textContent=localStorage['cobros.token']?'Hay un token guardado en este teléfono.':'No hay token: solo se puede mirar.'; }
+$('tokSave').onclick=()=>{ const t=$('tok').value.trim(); if(!t) return; localStorage['cobros.token']=t; $('tok').value=''; tokStat(); say('Token guardado en este teléfono.'); };
+$('tokDel').onclick=()=>{ delete localStorage['cobros.token']; tokStat(); say('Token borrado.'); };
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('main>section').forEach(s=>s.hidden=s.id!==b.dataset.t);
+  if(b.dataset.t==='pagina') fit();
+});
+$('aNum').oninput=hint; $('aUrl').oninput=hint; $('reload').onclick=loadLinks;
+addEventListener('resize',fit);
+if('serviceWorker' in navigator&&location.protocol==='https:') navigator.serviceWorker.register('sw.js');
+renderLinks(); renderUndo(); tokStat(); loadLinks(); listPages(); preview();
+</script>
+</body>
+</html>
