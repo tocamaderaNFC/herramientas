@@ -1,6 +1,6 @@
 // App estática para abrirla sin conexión. Solo toca el cache directorio-v*, no cobros ni el resto del origin.
-const C = "directorio-v1";
-const FILES = ["./","index.html","app.js","data.js","manifest.json","icon.svg","icon-192.png","icon-512.png"];
+const C = "directorio-v2";
+const FILES = ["./","index.html","app.js","data.js","sync.js","manifest.json","icon.svg","icon-192.png","icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(C).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
