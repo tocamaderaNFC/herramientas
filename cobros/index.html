@@ -68,6 +68,7 @@ td{padding:6px 4px;border-top:1px solid #eee;vertical-align:top;overflow-wrap:an
     <input id="aUrl" placeholder="https://tocamaderanfc.github.io/colonia/cliente.html">
     <div id="aHint" class="muted" style="margin-top:6px"></div>
     <button class="btn" id="aGo">Revisar cambio</button>
+    <div class="f2"><button class="btn alt" id="lockBtn" hidden>🔒 Poner candado</button><button class="btn alt" id="unlockBtn" hidden>🔓 Sacar candado (PIN)</button></div>
   </div>
   <div class="card">
     <h2>Placas <span class="muted" id="lStat"></span></h2>
@@ -113,14 +114,14 @@ td{padding:6px 4px;border-top:1px solid #eee;vertical-align:top;overflow-wrap:an
     <button class="btn red" id="tokDel">Borrar token</button>
     <p class="muted" id="tokStat" style="margin-top:8px"></p>
   </div>
-  <div class="card"><h2>Bloqueadas</h2><p class="muted">003 (pagos The Crown Barber) no se puede tocar desde acá, ni su página.</p></div>
+  <div class="card"><h2>Bloqueadas</h2><p class="muted">003 (pagos The Crown Barber) no se puede tocar desde acá, ni su página. Las demás placas con 🔒 (venta cerrada) se cambian o desbloquean solo con el PIN. Los candados se guardan en r/locks.json.</p></div>
 </section>
 </main>
 
 <dialog id="dlg">
   <h2 id="dTitle"></h2>
   <div id="dBody"></div>
-  <div id="dType" hidden><label>Esta placa ya está activa. Escribí el número para confirmar</label><input id="dTypeIn" inputmode="numeric"></div>
+  <div id="dType" hidden><label id="dTypeL"></label><input id="dTypeIn" inputmode="numeric" autocomplete="off"></div>
   <button class="btn" id="dOk">Confirmar y subir</button>
   <button class="btn alt" id="dNo">Cancelar</button>
 </dialog>
@@ -169,26 +170,48 @@ async function put(repo,path,text,sha,message){ const j=await gh('PUT',cpath(rep
 async function del(repo,path,sha,message){ await gh('DELETE',cpath(repo,path),{message,sha,branch:BRANCH}); }
 
 // ---------- links.json (mismo formato que el repo: 2 espacios, claves ordenadas, sin \n final) ----------
-const linksText=o=>'{\n'+Object.keys(o).sort().map(k=>'  '+JSON.stringify(k)+': '+JSON.stringify(o[k])).join(',\n')+'\n}';
+// Sirve para links.json y locks.json: claves ordenadas, 2 espacios, objetos en una línea, sin \n final.
+const jv=v=>v&&typeof v==='object'?'{'+Object.keys(v).map(k=>JSON.stringify(k)+': '+JSON.stringify(v[k])).join(', ')+'}':JSON.stringify(v);
+const linksText=o=>{ const k=Object.keys(o).sort(); return k.length?'{\n'+k.map(x=>'  '+JSON.stringify(x)+': '+jv(o[x])).join(',\n')+'\n}':'{}'; };
+// ---------- Candados (r/locks.json: {"NNN": {"desde": "AAAA-MM-DD", "nota": "…"}}) ----------
+// PIN: solo el hash con sal. Es un freno contra errores, no seguridad (el repo es público).
+const PIN_SALT='tocamadera-cobros-v1:', PIN_HASH='b9134a29543a852039592e3a5f1718a24b3727d2eab72eec7b980cfe0f9d3606';
+async function pinOk(pin){ const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(PIN_SALT+pin)); return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')===PIN_HASH; }
+let locks=JSON.parse(localStorage['cobros.locks']||'{}');
+const isLocked=k=>LOCKED.includes(k)||!!locks[k];
+async function getLocks(){ const f=await getFile('r','locks.json'); return {sha:f&&f.sha,text:f&&f.text,obj:f?JSON.parse(f.text):{}}; }
+function today(){ return stamp().slice(0,10); }
+async function backupName(kind){ const base='backups/'+kind+'-'+stamp(); let bk=base+'.json'; for(let i=2;await getFile('r',bk);i++) bk=base+'-'+i+'.json'; return bk; }
+async function locksPlan(num,lockIt,nota){
+  if(LOCKED.includes(num)) throw new Error('La '+num+' está bloqueada para siempre: no se puede desbloquear.');
+  const cur=await getLocks(), next={...cur.obj};
+  if(lockIt){ if(next[num]) throw new Error('La '+num+' ya tiene candado.'); next[num]={desde:today(),nota:nota||''}; }
+  else { if(!next[num]) throw new Error('La '+num+' no tiene candado.'); delete next[num]; }
+  const writes=[], bk=cur.text!=null&&await backupName('locks');
+  if(bk) writes.push({repo:'r',path:bk,text:cur.text,prevSha:null,msg:'respaldo locks.json antes de '+num,backup:true});
+  writes.push({repo:'r',path:'locks.json',text:linksText(next),prevSha:cur.sha,msg:num+': '+(lockIt?'candado puesto':'candado sacado')+(bk?' (respaldo '+bk+')':'')});
+  return {writes,bk};
+}
 function lockedPages(){ return LOCKED.map(n=>links&&links[n]).filter(Boolean); }
 
 async function loadLinks(){
   try{
     const f=await getFile('r','links.json'); links=JSON.parse(f.text); localStorage['cobros.links']=JSON.stringify(links);
+    locks=(await getLocks()).obj; localStorage['cobros.locks']=JSON.stringify(locks);
     $('lStat').textContent='';
   }catch(e){ $('lStat').textContent=links?'(sin conexión: copia guardada)':'(no se pudo leer)'; }
   try{ const d=await getFile('herramientas','datos.json'); custom=(d&&JSON.parse(d.text).custom_urls)||{}; }catch(e){}
-  renderLinks(); renderNumSel();
+  renderLinks(); renderNumSel(); hint();
 }
 function renderLinks(){
   const box=$('lList'); box.innerHTML=''; if(!links) return;
   let free=0;
   Object.keys(links).sort().forEach(k=>{
     const r=range(k), v=links[k], d=document.createElement('div');
-    d.className='row'+(v?'':' free')+(LOCKED.includes(k)?' lock':''); if(!v) free++;
+    d.className='row'+(v?'':' free')+(isLocked(k)?' lock':''); if(!v) free++;
     d.innerHTML='<span class="num"></span><span class="tag '+(r?r.c:'')+'"></span><span class="dest"></span>';
     d.children[0].textContent=k; d.children[1].textContent=r?r.t:'fuera de rango';
-    d.children[2].textContent=v?v.replace(/^https:\/\//,''):'libre';
+    d.children[2].textContent=(v?v.replace(/^https:\/\//,''):'libre')+(locks[k]?' · 🔒 '+locks[k].desde+(locks[k].nota?' · '+locks[k].nota:''):'');
     if(!LOCKED.includes(k)) d.onclick=()=>{ $('aNum').value=k; $('aUrl').value=v; hint(); scrollTo(0,0); };
     box.appendChild(d);
   });
@@ -197,7 +220,7 @@ function renderLinks(){
 function renderNumSel(){
   const r=RANGES.find(x=>x.repo===$('pRepo').value), s=$('pNum'), keep=s.value; s.innerHTML='<option value="">— no asignar —</option>';
   if(!links) return;
-  for(let n=r.a;n<=r.b;n++){ const k=pad(n); if(k in links&&!links[k]) s.add(new Option(k+' (libre)',k)); }
+  for(let n=r.a;n<=r.b;n++){ const k=pad(n); if(k in links&&!links[k]&&!isLocked(k)) s.add(new Option(k+' (libre)',k)); }
   const next=pad(Math.max(r.a-1,...Object.keys(links).filter(k=>range(k)===r).map(Number))+1);
   if(+next<=r.b&&!(next in links)) s.add(new Option(next+' (nuevo)',next));
   s.value=keep;
@@ -215,20 +238,22 @@ function checkAssign(num,url){
   if(url&&!r.repo&&!url.includes('search.google.com/local/writereview')) warn='Ojo: el '+num+' es de reseñas y el link no es de Google.';
   return {num,url,warn};
 }
-function hint(){ try{ const c=checkAssign($('aNum').value,$('aUrl').value); $('aHint').textContent=c.warn||(c.url?'→ '+c.url:'Se va a liberar la placa'); }catch(e){ $('aHint').textContent=$('aNum').value?e.message:''; } }
+function hint(){
+  const n=/^\d{1,3}$/.test($('aNum').value.trim())?pad($('aNum').value.trim()):'';
+  $('lockBtn').hidden=!n||isLocked(n)||!range(n); $('unlockBtn').hidden=!n||!locks[n]||LOCKED.includes(n);
+  try{ const c=checkAssign($('aNum').value,$('aUrl').value); $('aHint').textContent=(locks[c.num]?'🔒 Con candado: va a pedir el PIN. ':'')+(c.warn||(c.url?'→ '+c.url:'Se va a liberar la placa')); }catch(e){ $('aHint').textContent=$('aNum').value?e.message:''; } }
 function stamp(){ const d=new Date(), p=n=>String(n).padStart(2,'0'); return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes()); }
 
 // Arma las escrituras de links.json (respaldo + cambio) leyendo la versión actual del repo.
 async function linksPlan(num,url,what){
-  const cur=await getFile('r','links.json'), old=JSON.parse(cur.text);
+  const cur=await getFile('r','links.json'), old=JSON.parse(cur.text), lk=(await getLocks()).obj;
   if(old[num]===undefined&&!url) throw new Error('El '+num+' no existe y no hay nada que liberar.');
   if((old[num]||'')===url) throw new Error('La placa '+num+' ya apunta ahí. No hay cambios.');
   const next={...old,[num]:url};
   if(LOCKED.some(k=>next[k]!==old[k])) throw new Error('Cambio bloqueado (003).');
-  const base='backups/links-'+stamp(); let bk=base+'.json';
-  for(let i=2;await getFile('r',bk);i++) bk=base+'-'+i+'.json';
+  const bk=await backupName('links');
   const desc=url?(what||(url.includes('writereview')?'reseñas':'link')):'liberada';
-  return {num,old:old[num],url,occupied:!!old[num],writes:[
+  return {num,old:old[num],url,occupied:!!old[num],locked:!!lk[num],guard:lk[num]?'pin':(old[num]?num:''),writes:[
     {repo:'r',path:bk,text:cur.text,prevSha:null,msg:'respaldo links.json antes de '+num,backup:true},
     {repo:'r',path:'links.json',text:linksText(next),prevSha:cur.sha,msg:num+': '+desc+' (respaldo '+bk+')'}]};
 }
@@ -239,22 +264,28 @@ function linksDiffHtml(p){
 }
 
 // ---------- Confirmación + ejecución + deshacer ----------
-function confirmDlg(title,html,typeNum){
+// guard: '' = solo confirmar, 'NNN' = escribir el número, 'pin' = pedir el PIN.
+function confirmDlg(title,html,guard){
   return new Promise(res=>{
-    $('dTitle').textContent=title; $('dBody').innerHTML=html; $('dType').hidden=!typeNum; $('dTypeIn').value='';
-    $('dOk').onclick=()=>{ if(typeNum&&$('dTypeIn').value.trim()!==typeNum){ say('Escribí '+typeNum+' para confirmar','err'); return; } $('dlg').close(); res(true); };
+    $('dTitle').textContent=title; $('dBody').innerHTML=html; $('dType').hidden=!guard; $('dTypeIn').value='';
+    $('dTypeL').textContent=guard==='pin'?'🔒 Placa con candado. Poné el PIN para confirmar':'Esta placa ya está activa. Escribí el número para confirmar';
+    $('dTypeIn').type=guard==='pin'?'password':'text';
+    $('dOk').onclick=async()=>{ const v=$('dTypeIn').value.trim();
+      if(guard==='pin'&&!await pinOk(v)){ say('PIN incorrecto','err'); return; }
+      if(guard&&guard!=='pin'&&v!==guard){ say('Escribí '+guard+' para confirmar','err'); return; }
+      $('dlg').close(); res(true); };
     $('dNo').onclick=()=>{ $('dlg').close(); res(false); };
     $('dlg').showModal();
   });
 }
 const undoStack=()=>JSON.parse(localStorage['cobros.undo']||'[]');
 function renderUndo(){ const u=undoStack(); $('undo').hidden=!u.length; $('undo').title=u.length?u[u.length-1].desc:''; }
-async function run(desc,writes){
+async function run(desc,writes,pin){
   const done=[];
   try{
     for(const w of writes){ const sha=await put(w.repo,w.path,w.text,w.prevSha,w.msg); if(!w.backup) done.push({repo:w.repo,path:w.path,prevSha:w.prevSha,newSha:sha}); }
   }finally{
-    if(done.length){ const u=undoStack(); u.push({desc,writes:done}); localStorage['cobros.undo']=JSON.stringify(u.slice(-10)); renderUndo(); }
+    if(done.length){ const u=undoStack(); u.push({desc,writes:done,pin:!!pin}); localStorage['cobros.undo']=JSON.stringify(u.slice(-10)); renderUndo(); }
   }
 }
 $('undo').onclick=async()=>{
@@ -262,7 +293,7 @@ $('undo').onclick=async()=>{
   try{
     for(const w of last.writes){ const c=await getFile(w.repo,w.path); if(!c||c.sha!==w.newSha) throw new Error(w.repo+'/'+w.path+' cambió después. Restauralo desde backups/ o con editor github.'); w.curSha=c.sha; }
     const list=last.writes.map(w=>'<li>'+esc(w.repo+'/'+w.path)+(w.prevSha?' → versión anterior':' → se borra (era nuevo)')+'</li>').join('');
-    if(!await confirmDlg('Deshacer: '+last.desc,'<ul style="margin-left:18px">'+list+'</ul>')) return;
+    if(!await confirmDlg('Deshacer: '+last.desc,'<ul style="margin-left:18px">'+list+'</ul>',last.pin?'pin':'')) return;
     for(const w of [...last.writes].reverse()){
       if(w.prevSha) await put(w.repo,w.path,await getBlob(w.repo,w.prevSha),w.curSha,'deshacer: '+last.desc);
       else await del(w.repo,w.path,w.curSha,'deshacer: '+last.desc);
@@ -275,8 +306,27 @@ $('aGo').onclick=async()=>{
   try{
     if(!localStorage['cobros.token']) throw new Error('Primero cargá el token en Ajustes.');
     const c=checkAssign($('aNum').value,$('aUrl').value), p=await linksPlan(c.num,c.url);
-    if(!await confirmDlg('Cambiar placa '+c.num,linksDiffHtml(p)+(c.warn?'<p class="warn">'+esc(c.warn)+'</p>':''),p.occupied?c.num:'')) return;
-    await run('placa '+c.num,p.writes); say('Placa '+c.num+' actualizada. GitHub Pages tarda ~1 min.'); $('aUrl').value=''; loadLinks();
+    if(!await confirmDlg('Cambiar placa '+c.num,linksDiffHtml(p)+(c.warn?'<p class="warn">'+esc(c.warn)+'</p>':''),p.guard)) return;
+    await run('placa '+c.num,p.writes,p.locked); say('Placa '+c.num+' actualizada. GitHub Pages tarda ~1 min.'); $('aUrl').value=''; loadLinks();
+  }catch(e){ say(e.message,'err'); }
+};
+
+$('lockBtn').onclick=async()=>{
+  try{
+    if(!localStorage['cobros.token']) throw new Error('Primero cargá el token en Ajustes.');
+    const n=pad($('aNum').value.trim()); if(!range(n)) throw new Error('Número inválido');
+    const p=await locksPlan(n,true);
+    if(!await confirmDlg('🔒 Poner candado a la '+n,'<p>Venta cerrada: para cambiarla o sacarle el candado va a pedir el PIN.</p><label>Nota (opcional, ej. cliente)</label><input id="lockNota">'+(p.bk?'<p class="muted" style="margin-top:8px">Respaldo: r/'+esc(p.bk)+'</p>':''),'')) return;
+    const w=p.writes.at(-1), o=JSON.parse(w.text); o[n].nota=$('lockNota').value.trim(); w.text=linksText(o);
+    await run('candado '+n,p.writes,true); say('Candado puesto en la '+n+'.'); loadLinks();
+  }catch(e){ say(e.message,'err'); }
+};
+$('unlockBtn').onclick=async()=>{
+  try{
+    if(!localStorage['cobros.token']) throw new Error('Primero cargá el token en Ajustes.');
+    const n=pad($('aNum').value.trim()), p=await locksPlan(n,false);
+    if(!await confirmDlg('🔓 Sacar candado a la '+n,'<p>La placa vuelve a quedar editable.</p>'+(p.bk?'<p class="muted">Respaldo: r/'+esc(p.bk)+'</p>':''),'pin')) return;
+    await run('sacar candado '+n,p.writes,false); say('Candado sacado de la '+n+'.'); loadLinks();
   }catch(e){ say(e.message,'err'); }
 };
 
@@ -355,10 +405,10 @@ $('pGo').onclick=async()=>{
     let body='<p><b>'+(cur?'Reemplaza':'Archivo nuevo')+':</b> '+esc(repo+'/'+path)+' ('+Math.round(html.length/1024)+' KB)</p><p class="muted">'+esc(url)+'</p>';
     if(cur){ try{ const old=parsePage(cur.text); body+='<table>'+[['Titular',old.name,state.name],['Medios',old.methods.map(m=>m.label+': '+m.fields.map(f=>f.value).join(' / ')).join(' · '),state.methods.map(m=>m.label+': '+m.fields.map(f=>f.value).join(' / ')).join(' · ')]].map(r=>'<tr><td>'+r[0]+'</td><td class="del">'+esc(r[1])+'</td></tr><tr><td></td><td class="add">'+esc(r[2])+'</td></tr>').join('')+'</table>'; }catch(e){ body+='<p class="warn">La página actual no es del generador; se reemplaza entera.</p>'; } }
     else body+='<p>'+esc(state.name)+' — '+esc(state.methods.map(m=>m.label+': '+m.fields.map(f=>f.value).join(' / ')).join(' · '))+'</p>';
-    let occ='', num=$('pNum').value;
-    if(num){ const c=checkAssign(num,url), p=await linksPlan(c.num,c.url,'pagos '+file); writes.push(...p.writes); body+='<h2 style="margin-top:12px">Placa</h2>'+linksDiffHtml(p); if(p.occupied) occ=c.num; }
+    let occ=Object.keys(locks).some(k=>links&&links[k]===url)?'pin':'', num=$('pNum').value;
+    if(num){ const c=checkAssign(num,url), p=await linksPlan(c.num,c.url,'pagos '+file); writes.push(...p.writes); body+='<h2 style="margin-top:12px">Placa</h2>'+linksDiffHtml(p); if(occ!=='pin'&&p.guard) occ=p.guard; }
     if(!await confirmDlg('Subir página'+(num?' y asignar '+num:''),body,occ)) return;
-    await run(path+(num?' + placa '+num:''),writes); say('Subido. GitHub Pages tarda ~1 min: '+url); loadLinks(); listPages();
+    await run(path+(num?' + placa '+num:''),writes,occ==='pin'); say('Subido. GitHub Pages tarda ~1 min: '+url); loadLinks(); listPages();
   }catch(e){ say(e.message,'err'); }
 };
 

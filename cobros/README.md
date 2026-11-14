@@ -7,7 +7,7 @@ App web para el celu (un HTML + 4 archivos chicos, sin build, sin IA, gratis) pa
 - armar una página de medios de pago con los mismos campos y la misma plantilla que `herramientas/GENERADOR_PAGOS.html`, verla en vivo y subirla a `colonia` o `buenos-aires`;
 - deshacer el último cambio con un toque.
 
-La 003 (pagos The Crown Barber) y su página están bloqueadas: la app no las toca.
+La 003 (pagos The Crown Barber) y su página están bloqueadas para siempre. Las placas vendidas llevan candado y se cambian solo con PIN (ver Candados).
 
 ## Archivos (`app/`)
 
@@ -26,6 +26,25 @@ La 003 (pagos The Crown Barber) y su página están bloqueadas: la app no las to
 - **Deshacer:** guarda el SHA anterior de cada archivo, que se puede restaurar con un toque. Si el archivo cambió después (por ejemplo, editor github lo tocó), no pisa nada y avisa que restaures desde `backups/`.
 
 **editor github hace lo mismo desde el chat:** sigue la skill `placas-nfc-links`, que usa los mismos archivos, el mismo formato, los mismos nombres de respaldo y los mismos mensajes de commit. Podés usar uno u otro, o mezclarlos: la app siempre relee el repo antes de escribir.
+
+## Candados 🔒 (ventas cerradas)
+
+Cuando se cierra una venta y la placa deja de ser de muestra, se le pone candado: escribís el número y tocás **🔒 Poner candado**. No pide PIN, solo confirmar, y podés agregar una nota (por ejemplo el cliente).
+
+- Para escribir sobre una placa con candado, editar su página o tocar **🔓 Sacar candado**, la app pide el **PIN**. Deshacer un cambio que saca un candado también lo pide.
+- La 003 está bloqueada en el código: no se puede desbloquear ni con PIN.
+- Las placas activas sin candado siguen pidiendo que escribas el número para confirmar.
+- El PIN no está escrito en la app, solo su hash SHA-256 con sal. Igual es un freno contra errores, no seguridad: el repo es público.
+
+Los candados se guardan en **`r/locks.json`**, así editor github y la app ven los mismos:
+
+```
+{
+  "101": {"desde": "2026-11-13", "nota": "Luis Zerpa"}
+}
+```
+
+Tiene el mismo estilo que `links.json`: claves de 3 dígitos ordenadas, 2 espacios y sin salto de línea al final. Vacío queda `{}`. Si no existe, la app lo crea con el primer candado. Antes de cada cambio guarda `r/backups/locks-AAAA-MM-DD-HHMM.json`. Commits: `101: candado puesto` / `101: candado sacado (respaldo backups/locks-….json)`.
 
 ## Crear el token (una sola vez)
 
